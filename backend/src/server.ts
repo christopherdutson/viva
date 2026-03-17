@@ -118,6 +118,33 @@ fastify.post<{ Params: SessionParams; Body: SaveQuestionBody }>(
   },
 );
 
+// List all sessions with question counts
+interface SessionRow {
+  id: string;
+  started_at: string;
+  completed_at: string | null;
+  overall_score: number | null;
+  passed: number | null;
+  question_count: number;
+}
+
+fastify.get('/sessions', async (_request, _reply) => {
+  return new Promise<SessionRow[]>((resolve, reject) => {
+    db.all(
+      `SELECT s.id, s.started_at, s.completed_at, s.overall_score, s.passed,
+              COUNT(q.id) AS question_count
+       FROM sessions s
+       LEFT JOIN question_assessments q ON q.session_id = s.id
+       GROUP BY s.id
+       ORDER BY s.started_at DESC`,
+      (err: Error | null, rows: SessionRow[]) => {
+        if (err) return reject(err);
+        resolve(rows);
+      },
+    );
+  });
+});
+
 // Mark a session as complete
 fastify.patch<{ Params: SessionParams }>(
   '/sessions/:sessionId/complete',

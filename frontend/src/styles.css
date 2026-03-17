@@ -140,6 +140,11 @@ button:disabled {
   color: #991b1b;
 }
 
+.badge.in-progress {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
 /* ── Utility ────────────────────────────────────────────────── */
 
 .muted {

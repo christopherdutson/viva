@@ -2,8 +2,8 @@
 
 3-14-26: 5:12pm: 2.5 hrs
 - Initial project setup: Create and run basic frontend, placeholder backend, setup docker
-3-17-26: 8:20am: 
-- Claude.md Instructions, Updated UI, added recordings
+3-17-26: 8:20am: 2 hrs
+- Claude.md Instructions, Updated UI, added recordings, store transcriptions, display results
 
 
 2. Technical Decisions

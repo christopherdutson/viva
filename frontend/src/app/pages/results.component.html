@@ -1,29 +1,44 @@
 <div class="card">
   <h2>Past Exam Results</h2>
-  <p>Review your previous sessions; data is simulated for now.</p>
 
-  <table class="table">
-    <thead>
-      <tr>
-        <th>Session</th>
-        <th>Date</th>
-        <th>Score</th>
-        <th>Status</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let session of sessions">
-        <td>{{ session.id }}</td>
-        <td>{{ session.startedAt | date: 'medium' }}</td>
-        <td>{{ (session.overallScore * 100) | number: '1.0-0' }}%</td>
-        <td>
-          <span class="badge" [class.passed]="session.passed" [class.failed]="!session.passed">
-            {{ session.passed ? 'Passed' : 'Failed' }}
-          </span>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  @if (loading()) {
+    <p class="muted">Loading sessions…</p>
+  } @else if (error()) {
+    <p class="error-text">{{ error() }}</p>
+  } @else if (sessions().length === 0) {
+    <p class="muted">No sessions yet. <a [routerLink]="['/exam']">Start your first exam.</a></p>
+  } @else {
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Session</th>
+          <th>Started</th>
+          <th>Finished</th>
+          <th>Score</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (session of sessions(); track session.id; let i = $index) {
+          <tr>
+            <td>#{{ sessions().length - i }}</td>
+            <td>{{ session.started_at | date: 'dd MMM y, HH:mm' }}</td>
+            <td>{{ session.completed_at ? (session.completed_at | date: 'dd MMM y, HH:mm') : '—' }}</td>
+            <td>{{ scoreLabel(session) }}</td>
+            <td>
+              @if (session.completed_at) {
+                <span class="badge" [class.passed]="isPassed(session)" [class.failed]="!isPassed(session)">
+                  {{ isPassed(session) ? 'Passed' : 'Failed' }}
+                </span>
+              } @else {
+                <span class="badge in-progress">In progress</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
 
   <div class="button-group" style="margin-top: 1.5rem;">
     <button class="secondary" [routerLink]="['/']">Back to Home</button>
