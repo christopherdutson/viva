@@ -10,8 +10,12 @@ import { promisify } from "node:util";
 import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import { pipeline } from '@xenova/transformers';
+import Anthropic from '@anthropic-ai/sdk';
+import { getRubric } from './rubrics.js';
 
 const execFileAsync = promisify(execFile);
+
+const anthropic = new Anthropic();
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 const DB_PATH = process.env.DB_PATH ?? "./data/app.db";
@@ -28,7 +32,8 @@ fastify.register(multipart, {
 
 // ── Whisper pipeline (cached after first load) ──────────────────────────────
 type WhisperOutput = { text: string } | Array<{ text: string }>;
-type WhisperPipeline = (input: Float32Array) => Promise<WhisperOutput>;
+type WhisperPipelineOptions = { chunk_length_s?: number; stride_length_s?: number };
+type WhisperPipeline = (input: Float32Array, options?: WhisperPipelineOptions) => Promise<WhisperOutput>;
 
 let whisperPipeline: WhisperPipeline | null = null;
 
@@ -70,6 +75,17 @@ db.serialize(() => {
       transcript      TEXT NOT NULL,
       score           REAL,
       passed          INTEGER
+    )
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS concept_extractions (
+      id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+      question_assessment_id INTEGER NOT NULL REFERENCES question_assessments(id),
+      concept_id             INTEGER NOT NULL,
+      concept_name           TEXT NOT NULL,
+      detected               INTEGER NOT NULL,
+      confidence             REAL NOT NULL,
+      evidence               TEXT NOT NULL
     )
   `);
 });
@@ -159,26 +175,264 @@ fastify.get('/sessions', async (_request, _reply) => {
   });
 });
 
-// Mark a session as complete
+// Mark a session as complete and compute overall score
 fastify.patch<{ Params: SessionParams }>(
   '/sessions/:sessionId/complete',
-  async (request, _reply) => {
+  async (request, reply) => {
     const { sessionId } = request.params;
     const completedAt = new Date().toISOString();
+
+    // Compute overall score from concept extractions
+    interface ScoreRow { total_detected: number; total_concepts: number }
+    const scoreRow = await new Promise<ScoreRow>((resolve, reject) => {
+      db.get(
+        `SELECT
+           SUM(CASE WHEN ce.detected = 1 THEN 1 ELSE 0 END) AS total_detected,
+           COUNT(ce.id) AS total_concepts
+         FROM concept_extractions ce
+         JOIN question_assessments qa ON ce.question_assessment_id = qa.id
+         WHERE qa.session_id = ?`,
+        [sessionId],
+        (err: Error | null, row: ScoreRow) => {
+          if (err) return reject(err);
+          resolve(row);
+        },
+      );
+    });
+
+    // All 3 questions must individually pass for overall pass
+    interface PassRow { all_passed: number }
+    const passRow = await new Promise<PassRow>((resolve, reject) => {
+      db.get(
+        `SELECT MIN(COALESCE(passed, 0)) AS all_passed
+         FROM question_assessments
+         WHERE session_id = ?`,
+        [sessionId],
+        (err: Error | null, row: PassRow) => {
+          if (err) return reject(err);
+          resolve(row);
+        },
+      );
+    });
+
+    const totalDetected = scoreRow.total_detected ?? 0;
+    const totalConcepts = scoreRow.total_concepts ?? 0;
+    const overallScore = totalConcepts > 0 ? totalDetected / totalConcepts : null;
+    const passed = passRow.all_passed === 1 ? 1 : 0;
+
     return new Promise<{ completed_at: string }>((resolve, reject) => {
       db.run(
-        'UPDATE sessions SET completed_at = ? WHERE id = ?',
-        [completedAt, sessionId],
+        'UPDATE sessions SET completed_at = ?, overall_score = ?, passed = ? WHERE id = ?',
+        [completedAt, overallScore, passed, sessionId],
         function (err: Error | null) {
           if (err) return reject(err);
           if (this.changes === 0) {
-            reject(Object.assign(new Error('Session not found'), { statusCode: 404 }));
+            void reply.status(404).send({ error: 'Session not found' });
+            reject(new Error('Session not found'));
           } else {
             resolve({ completed_at: completedAt });
           }
         },
       );
     });
+  },
+);
+
+// ── LLM concept extraction ───────────────────────────────────────────────────
+
+interface ExtractParams {
+  sessionId: string;
+  questionNumber: string;
+}
+
+interface ConceptExtractionInput {
+  conceptId: number;
+  conceptName: string;
+  detected: boolean;
+  confidence: number;
+  evidence: string;
+}
+
+interface AssessmentRow {
+  id: number;
+  transcript: string;
+}
+
+interface ExtractionResult {
+  questionAssessmentId: number;
+  concepts: ConceptExtractionInput[];
+  score: number;
+  passed: boolean;
+}
+
+fastify.post<{ Params: ExtractParams }>(
+  '/sessions/:sessionId/questions/:questionNumber/extract',
+  async (request, reply) => {
+    const { sessionId } = request.params;
+    const questionNumber = parseInt(request.params.questionNumber, 10);
+
+    if (![1, 2, 3].includes(questionNumber)) {
+      return reply.status(400).send({ error: 'questionNumber must be 1, 2, or 3' });
+    }
+
+    const rubric = getRubric(questionNumber);
+    if (!rubric) {
+      return reply.status(400).send({ error: 'Invalid question number' });
+    }
+
+    // Look up the question assessment
+    const assessment = await new Promise<AssessmentRow | null>((resolve, reject) => {
+      db.get(
+        'SELECT id, transcript FROM question_assessments WHERE session_id = ? AND question_number = ?',
+        [sessionId, questionNumber],
+        (err: Error | null, row: AssessmentRow | undefined) => {
+          if (err) return reject(err);
+          resolve(row ?? null);
+        },
+      );
+    });
+
+    if (!assessment) {
+      return reply.status(404).send({ error: 'Question assessment not found' });
+    }
+
+    // Call Claude to extract concepts
+    const conceptList = rubric.concepts
+      .map((c) => `${c.id}. ${c.name}: ${c.description}`)
+      .join('\n');
+
+    let extractedConcepts: ConceptExtractionInput[];
+    try {
+      const message = await anthropic.messages.create({
+        model: 'claude-opus-4-6',
+        max_tokens: 4096,
+        tools: [
+          {
+            name: 'extract_concepts',
+            description:
+              'For each concept in the rubric, determine whether the student demonstrated understanding of it in their answer.',
+            input_schema: {
+              type: 'object' as const,
+              properties: {
+                concepts: {
+                  type: 'array' as const,
+                  description: 'One entry per rubric concept, in order',
+                  items: {
+                    type: 'object' as const,
+                    properties: {
+                      conceptId: {
+                        type: 'number' as const,
+                        description: 'The concept number from the rubric',
+                      },
+                      conceptName: {
+                        type: 'string' as const,
+                        description: 'The concept name from the rubric',
+                      },
+                      detected: {
+                        type: 'boolean' as const,
+                        description:
+                          'True if the student demonstrated understanding of this concept, even if imperfectly or using different terminology',
+                      },
+                      confidence: {
+                        type: 'number' as const,
+                        description: 'Confidence score from 0.0 to 1.0',
+                      },
+                      evidence: {
+                        type: 'string' as const,
+                        description:
+                          'A quote or paraphrase from the transcript supporting the detection verdict. If not detected, explain what was missing.',
+                      },
+                    },
+                    required: ['conceptId', 'conceptName', 'detected', 'confidence', 'evidence'],
+                    additionalProperties: false,
+                  },
+                },
+              },
+              required: ['concepts'],
+              additionalProperties: false,
+            },
+          },
+        ],
+        tool_choice: { type: 'tool', name: 'extract_concepts' },
+        messages: [
+          {
+            role: 'user',
+            content: `You are an expert examiner evaluating an oral exam answer about distributed systems.
+
+QUESTION: "${rubric.questionText}"
+
+STUDENT'S ANSWER (transcribed from speech):
+"${assessment.transcript}"
+
+RUBRIC CONCEPTS TO EVALUATE:
+${conceptList}
+
+Instructions:
+- Evaluate every concept in the rubric
+- Be generous: if the student touches on the idea — even imperfectly, informally, or using different terminology — mark it as detected
+- Provide evidence from the transcript for each concept (a direct quote or paraphrase)
+- Use confidence 0.9+ when clearly stated, 0.6–0.9 when implied or partial, below 0.6 when very uncertain`,
+          },
+        ],
+      });
+
+      const toolBlock = message.content.find(
+        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+      );
+      if (!toolBlock) {
+        throw new Error('LLM did not return structured extraction');
+      }
+
+      const raw = toolBlock.input as { concepts: ConceptExtractionInput[] };
+      extractedConcepts = raw.concepts;
+    } catch (err) {
+      fastify.log.error(err, 'LLM extraction failed');
+      return reply.status(500).send({ error: 'Concept extraction failed' });
+    }
+
+    // Persist extractions and compute score
+    const detectedCount = extractedConcepts.filter((c) => c.detected).length;
+    const score = extractedConcepts.length > 0 ? detectedCount / extractedConcepts.length : 0;
+    const passed = score >= 0.75 ? 1 : 0;
+
+    await new Promise<void>((resolve, reject) => {
+      db.serialize(() => {
+        // Remove any prior extractions for this assessment (idempotent retry)
+        db.run(
+          'DELETE FROM concept_extractions WHERE question_assessment_id = ?',
+          [assessment.id],
+          (err: Error | null) => { if (err) reject(err); },
+        );
+
+        for (const c of extractedConcepts) {
+          db.run(
+            `INSERT INTO concept_extractions
+               (question_assessment_id, concept_id, concept_name, detected, confidence, evidence)
+             VALUES (?, ?, ?, ?, ?, ?)`,
+            [assessment.id, c.conceptId, c.conceptName, c.detected ? 1 : 0, c.confidence, c.evidence],
+            (err: Error | null) => { if (err) reject(err); },
+          );
+        }
+
+        db.run(
+          'UPDATE question_assessments SET score = ?, passed = ? WHERE id = ?',
+          [score, passed, assessment.id],
+          (err: Error | null) => {
+            if (err) reject(err);
+            else resolve();
+          },
+        );
+      });
+    });
+
+    const result: ExtractionResult = {
+      questionAssessmentId: assessment.id,
+      concepts: extractedConcepts,
+      score,
+      passed: passed === 1,
+    };
+
+    return result;
   },
 );
 
@@ -212,7 +466,10 @@ fastify.post('/transcribe', async (request, reply) => {
     );
 
     const transcriber = await getWhisperPipeline();
-    const result = await transcriber(audioData);
+    // chunk_length_s enables long-form transcription by splitting audio into
+    // overlapping 30-second windows — without this Whisper silently truncates
+    // at its context window (~30 s).
+    const result = await transcriber(audioData, { chunk_length_s: 30, stride_length_s: 5 });
     const output = Array.isArray(result) ? result[0] : result;
     const transcript = (output?.text ?? '').trim();
 

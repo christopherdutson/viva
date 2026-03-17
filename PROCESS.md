@@ -5,7 +5,7 @@
 3-17-26: 8:20am: 2 hrs
 - First Claude.md Instructions, Updated UI, added recordings, store transcriptions, display basic results but always passing scores
 3-17-26: 11:50am: 
-- Clean up backend to account for unusual inputs
+- Clean up backend to account for unusual inputs, Setup LLM extraction with Claude, troubleshooted issues with Anthropic API
 
 
 2. Technical Decisions
@@ -14,10 +14,11 @@ For each major choice (language, framework, database, STT model, LLM provider, e
 what you considered and why you chose what you did.
 
 Angular (frontend) - Framework I am most familiar with and could iterate on most quickly
-Node.js + Fastify (backend) - 
+Node.js + Fastify (backend) - Maintain consistency by using javascript, and use Fastify to simplify the implementation
 SQLite (database) - Lightweight storage, easy to read and access results
 Docker (backend container) - Required
 Whisper - Lightweight and fast, good enough for the purposes of this app
+Claude API  (LLM Provider) - As I used Claude as a coding assistant, it was most familiar with this API and could it working better and faster
 
 
 3. Tools & Environment - List every tool, library, editor, extension, and service you used during development. Be comprehensive — we want to understand your full development environment and workflow.

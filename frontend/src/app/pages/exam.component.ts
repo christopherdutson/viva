@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 import { AudioRecorderComponent } from '../components/audio-recorder.component';
 import { TranscriptionService } from '../services/transcription.service';
 import { SessionService } from '../services/session.service';
+import { ExtractionService, type ConceptExtraction } from '../services/extraction.service';
 
 const QUESTIONS = [
   {
@@ -27,6 +28,11 @@ interface QuestionState {
   transcript: string | null;
   transcribing: boolean;
   transcriptionError: string | null;
+  extracting: boolean;
+  extractionError: string | null;
+  concepts: ConceptExtraction[] | null;
+  score: number | null;
+  passed: boolean | null;
 }
 
 const emptyState = (): QuestionState => ({
@@ -34,6 +40,11 @@ const emptyState = (): QuestionState => ({
   transcript: null,
   transcribing: false,
   transcriptionError: null,
+  extracting: false,
+  extractionError: null,
+  concepts: null,
+  score: null,
+  passed: null,
 });
 
 @Component({
@@ -46,12 +57,14 @@ const emptyState = (): QuestionState => ({
 export class ExamComponent implements OnInit {
   private readonly transcriptionService = inject(TranscriptionService);
   private readonly sessionService = inject(SessionService);
+  private readonly extractionService = inject(ExtractionService);
 
   readonly questions = QUESTIONS;
   readonly total = QUESTIONS.length;
 
   private readonly currentIndexSignal = signal(0);
   private readonly examCompleted = signal(false);
+  readonly completing = signal(false);
   private sessionId: string | null = null;
 
   readonly questionStates = signal<QuestionState[]>(
@@ -86,6 +99,8 @@ export class ExamComponent implements OnInit {
 
   isReadyToAdvance(): boolean {
     const s = this.currentState();
+    // Unblock Next/Finish as soon as transcription is done.
+    // Extraction runs in the background and does not block navigation.
     return s.blob !== null && !s.transcribing && s.transcript !== null;
   }
 
@@ -103,13 +118,29 @@ export class ExamComponent implements OnInit {
     }
   }
 
-  next(): void {
-    if (!this.isReadyToAdvance()) return;
+  retryExtraction(): void {
+    const idx = this.currentIndex();
+    const s = this.currentState();
+    if (s.transcript && this.sessionId) {
+      this.patchState(idx, { extractionError: null });
+      void this.extract(idx);
+    }
+  }
+
+  async next(): Promise<void> {
+    if (!this.isReadyToAdvance() || this.completing()) return;
     if (this.isLast()) {
-      this.examCompleted.set(true);
-      if (this.sessionId) {
-        void this.sessionService.completeSession(this.sessionId);
+      this.completing.set(true);
+      try {
+        if (this.sessionId) {
+          await this.sessionService.completeSession(this.sessionId);
+        }
+      } catch {
+        // Non-fatal — still show completion screen
+      } finally {
+        this.completing.set(false);
       }
+      this.examCompleted.set(true);
       return;
     }
     this.currentIndexSignal.update((i) => i + 1);
@@ -124,7 +155,8 @@ export class ExamComponent implements OnInit {
     try {
       const transcript = await this.transcriptionService.transcribe(blob);
       this.patchState(index, { transcript, transcribing: false });
-      this.persistQuestion(index, transcript);
+      await this.persistQuestion(index, transcript);
+      void this.extract(index);
     } catch (err) {
       this.patchState(index, {
         transcribing: false,
@@ -133,15 +165,37 @@ export class ExamComponent implements OnInit {
     }
   }
 
-  private persistQuestion(index: number, transcript: string): void {
+  private async persistQuestion(index: number, transcript: string): Promise<void> {
     if (!this.sessionId) return;
     const question = QUESTIONS[index];
     if (!question) return;
-    void this.sessionService.saveQuestion(this.sessionId, {
+    await this.sessionService.saveQuestion(this.sessionId, {
       questionNumber: question.number,
       questionText: question.prompt,
       transcript,
     });
+  }
+
+  private async extract(index: number): Promise<void> {
+    if (!this.sessionId) return;
+    const question = QUESTIONS[index];
+    if (!question) return;
+
+    this.patchState(index, { extracting: true, extractionError: null });
+    try {
+      const result = await this.extractionService.extract(this.sessionId, question.number);
+      this.patchState(index, {
+        extracting: false,
+        concepts: result.concepts,
+        score: result.score,
+        passed: result.passed,
+      });
+    } catch (err) {
+      this.patchState(index, {
+        extracting: false,
+        extractionError: err instanceof Error ? err.message : 'Extraction failed',
+      });
+    }
   }
 
   private patchState(index: number, patch: Partial<QuestionState>): void {

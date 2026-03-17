@@ -27,7 +27,7 @@ Full requirements and concept rubrics are in [REQUIREMENTS.md](REQUIREMENTS.md).
 - [x] Audio recording UI (start/stop/playback)
 - [x] Session flow across 3 questions
 - [x] Local Whisper transcription endpoint
-- [ ] LLM concept extraction endpoint
+- [x] LLM concept extraction endpoint
 - [x] SQLite persistence (sessions, transcripts, scores)
 - [ ] Results dashboard (per-concept, pass/fail, session history)
 

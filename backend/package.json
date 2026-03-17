@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "tsx src/server.ts",
+    "dev": "tsx --env-file=.env src/server.ts",
     "build": "tsc --noEmit"
   },
   "keywords": [],
@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.79.0",
     "@fastify/cors": "^10.1.0",
     "@fastify/multipart": "^9.4.0",
     "@xenova/transformers": "^2.17.2",

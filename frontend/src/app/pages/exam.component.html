@@ -22,7 +22,7 @@
     </div>
   }
 
-  <!-- Transcription status (shown after a recording exists) -->
+  <!-- Transcription status -->
   @if (currentState().blob !== null) {
     <div class="transcription-status">
       @if (currentState().transcribing) {
@@ -44,6 +44,30 @@
     </div>
   }
 
+  <!-- Analysis status (independent of transcription display) -->
+  @if (currentState().transcript !== null) {
+    <div class="analysis-status">
+      @if (currentState().extracting) {
+        <div class="transcribing">
+          <div class="transcription-spinner"></div>
+          <span>Analysing your answer…</span>
+        </div>
+      } @else if (currentState().extractionError) {
+        <div class="transcription-error">
+          <p class="error-text">{{ currentState().extractionError }}</p>
+          <button class="secondary" (click)="retryExtraction()">Retry analysis</button>
+        </div>
+      } @else if (currentState().score !== null) {
+        <div class="extraction-summary" [class.extraction-passed]="currentState().passed" [class.extraction-failed]="!currentState().passed">
+          <span class="extraction-score">Score: {{ (currentState().score! * 100).toFixed(0) }}%</span>
+          <span class="badge" [class.passed]="currentState().passed" [class.failed]="!currentState().passed">
+            {{ currentState().passed ? 'Pass' : 'Fail' }}
+          </span>
+        </div>
+      }
+    </div>
+  }
+
   @if (completed()) {
     <div class="exam-complete">
       <p><strong>All questions answered and submitted.</strong> You may view scores or take again.</p>
@@ -60,9 +84,9 @@
       <button
         class="primary"
         (click)="next()"
-        [disabled]="!isReadyToAdvance()"
+        [disabled]="!isReadyToAdvance() || completing()"
       >
-        {{ isLast() ? 'Finish' : 'Next Question' }}
+        @if (completing()) { Finishing… } @else { {{ isLast() ? 'Finish' : 'Next Question' }} }
       </button>
     </div>
     @if (!isReadyToAdvance() && !currentState().transcribing) {

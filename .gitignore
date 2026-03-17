@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment variables — never commit secrets
+.env
+
+# Build output
+dist/
+build/
+
+# SQLite database (runtime data)
+*.db
+data/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
