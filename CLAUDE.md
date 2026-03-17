@@ -33,3 +33,5 @@ Full requirements and concept rubrics are in [REQUIREMENTS.md](REQUIREMENTS.md).
 ## Environment
 - API keys are in `.env` (not committed). See `.env.example` for required vars.
 - Docker Compose should start the full app — a fresh `docker compose up` (plus env vars) is the target deploy path.
+- **Shell:** The user runs backend commands (npm install, npm run dev, etc.) from **WSL** (paths like `/mnt/c/...`), not Windows CMD/PowerShell or Git Bash. Any install instructions for system packages (e.g. `apt install ffmpeg`) should be for WSL/Linux, not Windows.
+- The frontend is built from Git Bash or Windows — `npm run build` for the frontend uses the `/c/Users/...` path convention.

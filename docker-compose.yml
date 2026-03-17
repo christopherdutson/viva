@@ -10,9 +10,21 @@ services:
     environment:
       - PORT=3000
       - DB_PATH=/app/data/app.db
+      - WHISPER_MODEL=Xenova/whisper-base.en
+      # Controls where @xenova/transformers caches downloaded models
+      - TRANSFORMERS_CACHE=/app/.cache/transformers
 
     volumes:
-      - ./backend:/app
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+      - ./backend/tsconfig.json:/app/tsconfig.json
       - ./backend/data:/app/data
+      # Separate volume so the container's Linux node_modules aren't
+      # overwritten by the host's Windows node_modules
+      - backend_node_modules:/app/node_modules
+      # Persist downloaded Whisper model weights across container restarts
+      - whisper_cache:/app/.cache/transformers
 
-    command: npm run dev
+volumes:
+  backend_node_modules:
+  whisper_cache:

@@ -1,11 +1,11 @@
 <div class="card">
-  <!-- Progress bar -->
+  <!-- Progress steps -->
   <div class="exam-progress">
     @for (q of questions; track q.number) {
       <div
         class="progress-step"
         [class.active]="q.number - 1 === currentIndex()"
-        [class.done]="recordings()[q.number - 1] !== null"
+        [class.done]="questionStates()[q.number - 1]?.transcript !== null"
       >
         <span class="step-num">{{ q.number }}</span>
       </div>
@@ -19,6 +19,28 @@
   @for (q of questions; track q.number) {
     <div [style.display]="q.number - 1 === currentIndex() ? 'block' : 'none'">
       <app-audio-recorder (recordingReady)="onRecordingReady(q.number - 1, $event)" />
+    </div>
+  }
+
+  <!-- Transcription status (shown after a recording exists) -->
+  @if (currentState().blob !== null) {
+    <div class="transcription-status">
+      @if (currentState().transcribing) {
+        <div class="transcribing">
+          <div class="transcription-spinner"></div>
+          <span>Transcribing your answer…</span>
+        </div>
+      } @else if (currentState().transcriptionError) {
+        <div class="transcription-error">
+          <p class="error-text">{{ currentState().transcriptionError }}</p>
+          <button class="secondary" (click)="retryTranscription()">Retry</button>
+        </div>
+      } @else if (currentState().transcript) {
+        <div class="transcript-preview">
+          <p class="transcript-label">Transcript</p>
+          <p class="transcript-text">{{ currentState().transcript }}</p>
+        </div>
+      }
     </div>
   }
 
@@ -38,14 +60,16 @@
       <button
         class="primary"
         (click)="next()"
-        [disabled]="recordings()[currentIndex()] === null"
-        [title]="recordings()[currentIndex()] === null ? 'Record your answer first' : ''"
+        [disabled]="!isReadyToAdvance()"
       >
         {{ isLast() ? 'Finish' : 'Next Question' }}
       </button>
     </div>
-    @if (recordings()[currentIndex()] === null) {
-      <p class="muted next-hint">Record your answer to continue.</p>
+    @if (!isReadyToAdvance() && !currentState().transcribing) {
+      <p class="muted next-hint">
+        @if (currentState().blob === null) { Record your answer to continue. }
+        @else if (currentState().transcriptionError) { Fix the transcription error to continue. }
+      </p>
     }
   }
 </div>

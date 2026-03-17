@@ -3,7 +3,7 @@
 3-14-26: 5:12pm: 2.5 hrs
 - Initial project setup: Create and run basic frontend, placeholder backend, setup docker
 3-17-26: 8:20am: 
-- Claude.md Instructions, 
+- Claude.md Instructions, Updated UI, added recordings
 
 
 2. Technical Decisions
@@ -15,6 +15,7 @@ Angular (frontend) - Framework I am most familiar with and could iterate on most
 Node.js + Fastify (backend) - 
 SQLite (database) - Lightweight storage, easy to read and access results
 Docker (backend container) - Required
+Whisper - Lightweight and fast, good enough for the purposes of this app
 
 
 3. Tools & Environment - List every tool, library, editor, extension, and service you used during development. Be comprehensive — we want to understand your full development environment and workflow.

@@ -1,6 +1,7 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AudioRecorderComponent } from '../components/audio-recorder.component';
+import { TranscriptionService } from '../services/transcription.service';
 
 const QUESTIONS = [
   {
@@ -20,6 +21,20 @@ const QUESTIONS = [
   },
 ];
 
+interface QuestionState {
+  blob: Blob | null;
+  transcript: string | null;
+  transcribing: boolean;
+  transcriptionError: string | null;
+}
+
+const emptyState = (): QuestionState => ({
+  blob: null,
+  transcript: null,
+  transcribing: false,
+  transcriptionError: null,
+});
+
 @Component({
   standalone: true,
   selector: 'app-exam',
@@ -28,17 +43,25 @@ const QUESTIONS = [
   styleUrl: './exam.component.css',
 })
 export class ExamComponent {
+  private readonly transcriptionService = inject(TranscriptionService);
+
   readonly questions = QUESTIONS;
   readonly total = QUESTIONS.length;
 
   private readonly currentIndexSignal = signal(0);
   private readonly examCompleted = signal(false);
-  readonly recordings = signal<(Blob | null)[]>([null, null, null]);
+  readonly questionStates = signal<QuestionState[]>(
+    QUESTIONS.map(() => emptyState()),
+  );
 
   readonly currentQuestion = computed(() => QUESTIONS[this.currentIndexSignal()]);
 
   currentIndex(): number {
     return this.currentIndexSignal();
+  }
+
+  currentState(): QuestionState {
+    return this.questionStates()[this.currentIndexSignal()] ?? emptyState();
   }
 
   completed(): boolean {
@@ -49,16 +72,27 @@ export class ExamComponent {
     return this.currentIndex() === this.total - 1;
   }
 
+  isReadyToAdvance(): boolean {
+    const s = this.currentState();
+    return s.blob !== null && !s.transcribing && s.transcript !== null;
+  }
+
   onRecordingReady(index: number, blob: Blob | null): void {
-    this.recordings.update((recs) => {
-      const updated = [...recs] as (Blob | null)[];
-      updated[index] = blob;
-      return updated;
-    });
+    this.patchState(index, { ...emptyState(), blob });
+    if (blob) {
+      void this.transcribe(index, blob);
+    }
+  }
+
+  retryTranscription(): void {
+    const s = this.currentState();
+    if (s.blob) {
+      void this.transcribe(this.currentIndex(), s.blob);
+    }
   }
 
   next(): void {
-    if (this.recordings()[this.currentIndex()] === null) return;
+    if (!this.isReadyToAdvance()) return;
     if (this.isLast()) {
       this.examCompleted.set(true);
       return;
@@ -68,5 +102,24 @@ export class ExamComponent {
 
   prev(): void {
     this.currentIndexSignal.update((i) => Math.max(i - 1, 0));
+  }
+
+  private async transcribe(index: number, blob: Blob): Promise<void> {
+    this.patchState(index, { transcribing: true, transcriptionError: null });
+    try {
+      const transcript = await this.transcriptionService.transcribe(blob);
+      this.patchState(index, { transcript, transcribing: false });
+    } catch (err) {
+      this.patchState(index, {
+        transcribing: false,
+        transcriptionError: err instanceof Error ? err.message : 'Transcription failed',
+      });
+    }
+  }
+
+  private patchState(index: number, patch: Partial<QuestionState>): void {
+    this.questionStates.update((states) =>
+      states.map((s, i) => (i === index ? { ...s, ...patch } : s)),
+    );
   }
 }
