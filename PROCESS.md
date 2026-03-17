@@ -33,6 +33,7 @@ Whisper - Lightweight and fast, good enough for the purposes of this app
 5. Challenges & Solutions - What problems did you run into? How did you diagnose and solve them? What took longer than expected?
 
 - Docker took longer than expected to install and run. I've never used it before and tried installing it from the WSL command line but it didn't have everything I needed to run the project. I went to the official Docker documentation and downloaded the desktop app. 
+- Using WSL commands created some confusion as Claude installed using the windows command line. After I updated CLAUDE.md to note this things went much more smoothly. 
 
 6. If You Had More Time
 What would you improve, add, or change with another 16 hours?

@@ -1,7 +1,8 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AudioRecorderComponent } from '../components/audio-recorder.component';
 import { TranscriptionService } from '../services/transcription.service';
+import { SessionService } from '../services/session.service';
 
 const QUESTIONS = [
   {
@@ -42,19 +43,30 @@ const emptyState = (): QuestionState => ({
   templateUrl: './exam.component.html',
   styleUrl: './exam.component.css',
 })
-export class ExamComponent {
+export class ExamComponent implements OnInit {
   private readonly transcriptionService = inject(TranscriptionService);
+  private readonly sessionService = inject(SessionService);
 
   readonly questions = QUESTIONS;
   readonly total = QUESTIONS.length;
 
   private readonly currentIndexSignal = signal(0);
   private readonly examCompleted = signal(false);
+  private sessionId: string | null = null;
+
   readonly questionStates = signal<QuestionState[]>(
     QUESTIONS.map(() => emptyState()),
   );
 
   readonly currentQuestion = computed(() => QUESTIONS[this.currentIndexSignal()]);
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.sessionId = await this.sessionService.createSession();
+    } catch {
+      // Persist failure is non-fatal — exam continues without saving
+    }
+  }
 
   currentIndex(): number {
     return this.currentIndexSignal();
@@ -95,6 +107,9 @@ export class ExamComponent {
     if (!this.isReadyToAdvance()) return;
     if (this.isLast()) {
       this.examCompleted.set(true);
+      if (this.sessionId) {
+        void this.sessionService.completeSession(this.sessionId);
+      }
       return;
     }
     this.currentIndexSignal.update((i) => i + 1);
@@ -109,12 +124,24 @@ export class ExamComponent {
     try {
       const transcript = await this.transcriptionService.transcribe(blob);
       this.patchState(index, { transcript, transcribing: false });
+      this.persistQuestion(index, transcript);
     } catch (err) {
       this.patchState(index, {
         transcribing: false,
         transcriptionError: err instanceof Error ? err.message : 'Transcription failed',
       });
     }
+  }
+
+  private persistQuestion(index: number, transcript: string): void {
+    if (!this.sessionId) return;
+    const question = QUESTIONS[index];
+    if (!question) return;
+    void this.sessionService.saveQuestion(this.sessionId, {
+      questionNumber: question.number,
+      questionText: question.prompt,
+      transcript,
+    });
   }
 
   private patchState(index: number, patch: Partial<QuestionState>): void {

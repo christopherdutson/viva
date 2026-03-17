@@ -20,7 +20,7 @@ const fastify = Fastify({ logger: true });
 
 fastify.register(cors, {
   origin: true,
-  methods: ["GET", "POST", "OPTIONS"],
+  methods: ["GET", "POST", "PATCH", "OPTIONS"],
 });
 fastify.register(multipart);
 
@@ -48,53 +48,94 @@ if (!fs.existsSync(dbDir)) {
 
 const db = new sqlite3.Database(DB_PATH);
 
-// create table if it doesn't exist
+db.serialize(() => {
+  db.run(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id           TEXT PRIMARY KEY,
+      started_at   TEXT NOT NULL,
+      completed_at TEXT,
+      overall_score REAL,
+      passed       INTEGER
+    )
+  `);
+  db.run(`
+    CREATE TABLE IF NOT EXISTS question_assessments (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id      TEXT NOT NULL REFERENCES sessions(id),
+      question_number INTEGER NOT NULL,
+      question_text   TEXT NOT NULL,
+      transcript      TEXT NOT NULL,
+      score           REAL,
+      passed          INTEGER
+    )
+  `);
+});
 
-db.run(`
-CREATE TABLE IF NOT EXISTS recordings (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  transcript TEXT,
-  result TEXT,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-)
-`);
+interface SaveQuestionBody {
+  questionNumber: number;
+  questionText: string;
+  transcript: string;
+}
 
-fastify.post('/recording', async (request, reply) => {
-  const payload = request.body as any;
+interface SessionParams {
+  sessionId: string;
+}
 
-  if (!payload || typeof payload.transcript !== 'string' || typeof payload.result !== 'string') {
-    return reply.status(400).send({
-      error: 'Invalid request body. Must include `transcript` and `result` strings.',
-    });
-  }
-
-  const { transcript, result } = payload;
-
-  return new Promise((resolve, reject) => {
+// Create a new exam session
+fastify.post('/sessions', async (_request, _reply) => {
+  const id = randomUUID();
+  const startedAt = new Date().toISOString();
+  return new Promise<{ id: string; started_at: string }>((resolve, reject) => {
     db.run(
-      `INSERT INTO recordings (transcript, result) VALUES (?, ?)`,
-      [transcript, result],
-      function (err: any) {
+      'INSERT INTO sessions (id, started_at) VALUES (?, ?)',
+      [id, startedAt],
+      (err: Error | null) => {
         if (err) return reject(err);
-
-        resolve({
-          id: this.lastID,
-          transcript,
-          result,
-        });
-      }
+        resolve({ id, started_at: startedAt });
+      },
     );
   });
 });
 
-fastify.get('/recordings', async (request, reply) => {
-  return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM recordings', (err: any, rows: any) => {
-      if (err) return reject(err);
-      resolve(rows);
+// Save a transcribed question assessment
+fastify.post<{ Params: SessionParams; Body: SaveQuestionBody }>(
+  '/sessions/:sessionId/questions',
+  async (request, reply) => {
+    const { sessionId } = request.params;
+    const { questionNumber, questionText, transcript } = request.body;
+    return new Promise<{ id: number }>((resolve, reject) => {
+      db.run(
+        `INSERT INTO question_assessments
+           (session_id, question_number, question_text, transcript)
+         VALUES (?, ?, ?, ?)`,
+        [sessionId, questionNumber, questionText, transcript],
+        function (err: Error | null) {
+          if (err) return reject(err);
+          resolve({ id: this.lastID });
+        },
+      );
     });
-  });
-});
+  },
+);
+
+// Mark a session as complete
+fastify.patch<{ Params: SessionParams }>(
+  '/sessions/:sessionId/complete',
+  async (request, _reply) => {
+    const { sessionId } = request.params;
+    const completedAt = new Date().toISOString();
+    return new Promise<{ completed_at: string }>((resolve, reject) => {
+      db.run(
+        'UPDATE sessions SET completed_at = ? WHERE id = ?',
+        [completedAt, sessionId],
+        (err: Error | null) => {
+          if (err) return reject(err);
+          resolve({ completed_at: completedAt });
+        },
+      );
+    });
+  },
+);
 
 fastify.post('/transcribe', async (request, reply) => {
   const upload = await request.file();
