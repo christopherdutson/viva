@@ -19,15 +19,16 @@ Full requirements and concept rubrics are in [REQUIREMENTS.md](REQUIREMENTS.md).
 - Run `npm run build` in the relevant workspace before marking a task done.
 - One feature at a time, as instructed.
 
+
 ## Feature Status
 - [x] Docker Compose scaffold
 - [x] Angular frontend shell
 - [x] Fastify backend placeholder
 - [x] Audio recording UI (start/stop/playback)
 - [x] Session flow across 3 questions
-- [ ] Local Whisper transcription endpoint
+- [x] Local Whisper transcription endpoint
 - [ ] LLM concept extraction endpoint
-- [ ] SQLite persistence (sessions, transcripts, scores)
+- [x] SQLite persistence (sessions, transcripts, scores)
 - [ ] Results dashboard (per-concept, pass/fail, session history)
 
 ## Environment

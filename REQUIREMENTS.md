@@ -27,8 +27,7 @@ playback so the student can review before
 submitting. Manage session flow across all
 three questions.
 
-Local Speech-to-Text Transcribe audio using a small model running
-
+Local Speech-to-Text Transcribe audio using a small model running 
 locally (e.g., Whisper tiny, base, or
 equivalent). No cloud speech-to-text APIs
 

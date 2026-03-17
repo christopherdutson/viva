@@ -3,7 +3,9 @@
 3-14-26: 5:12pm: 2.5 hrs
 - Initial project setup: Create and run basic frontend, placeholder backend, setup docker
 3-17-26: 8:20am: 2 hrs
-- Claude.md Instructions, Updated UI, added recordings, store transcriptions, display results
+- First Claude.md Instructions, Updated UI, added recordings, store transcriptions, display basic results but always passing scores
+3-17-26: 11:50am: 
+- Clean up backend to account for unusual inputs
 
 
 2. Technical Decisions
@@ -28,6 +30,7 @@ Whisper - Lightweight and fast, good enough for the purposes of this app
 
 - ChatGPT: Initial Brainstorming, choosing tools, advice on setup
 - Docker official documentation 
+- Stack Overflow: Issues with npm, git broken pipe bug, etc
 
 
 5. Challenges & Solutions - What problems did you run into? How did you diagnose and solve them? What took longer than expected?

@@ -22,7 +22,9 @@ fastify.register(cors, {
   origin: true,
   methods: ["GET", "POST", "PATCH", "OPTIONS"],
 });
-fastify.register(multipart);
+fastify.register(multipart, {
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB — well above any realistic recording
+});
 
 // ── Whisper pipeline (cached after first load) ──────────────────────────────
 type WhisperOutput = { text: string } | Array<{ text: string }>;
@@ -49,6 +51,7 @@ if (!fs.existsSync(dbDir)) {
 const db = new sqlite3.Database(DB_PATH);
 
 db.serialize(() => {
+  db.run('PRAGMA foreign_keys = ON');
   db.run(`
     CREATE TABLE IF NOT EXISTS sessions (
       id           TEXT PRIMARY KEY,
@@ -103,6 +106,17 @@ fastify.post<{ Params: SessionParams; Body: SaveQuestionBody }>(
   async (request, reply) => {
     const { sessionId } = request.params;
     const { questionNumber, questionText, transcript } = request.body;
+
+    if (![1, 2, 3].includes(questionNumber)) {
+      return reply.status(400).send({ error: 'questionNumber must be 1, 2, or 3' });
+    }
+    if (!questionText || typeof questionText !== 'string') {
+      return reply.status(400).send({ error: 'questionText is required' });
+    }
+    if (!transcript || typeof transcript !== 'string') {
+      return reply.status(400).send({ error: 'transcript is required' });
+    }
+
     return new Promise<{ id: number }>((resolve, reject) => {
       db.run(
         `INSERT INTO question_assessments
@@ -155,9 +169,13 @@ fastify.patch<{ Params: SessionParams }>(
       db.run(
         'UPDATE sessions SET completed_at = ? WHERE id = ?',
         [completedAt, sessionId],
-        (err: Error | null) => {
+        function (err: Error | null) {
           if (err) return reject(err);
-          resolve({ completed_at: completedAt });
+          if (this.changes === 0) {
+            reject(Object.assign(new Error('Session not found'), { statusCode: 404 }));
+          } else {
+            resolve({ completed_at: completedAt });
+          }
         },
       );
     });
