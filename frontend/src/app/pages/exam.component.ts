@@ -65,7 +65,7 @@ export class ExamComponent implements OnInit {
   private readonly currentIndexSignal = signal(0);
   private readonly examCompleted = signal(false);
   readonly completing = signal(false);
-  private sessionId: string | null = null;
+  readonly sessionId = signal<string | null>(null);
 
   readonly questionStates = signal<QuestionState[]>(
     QUESTIONS.map(() => emptyState()),
@@ -75,7 +75,7 @@ export class ExamComponent implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      this.sessionId = await this.sessionService.createSession();
+      this.sessionId.set(await this.sessionService.createSession());
     } catch {
       // Persist failure is non-fatal — exam continues without saving
     }
@@ -121,7 +121,7 @@ export class ExamComponent implements OnInit {
   retryExtraction(): void {
     const idx = this.currentIndex();
     const s = this.currentState();
-    if (s.transcript && this.sessionId) {
+    if (s.transcript && this.sessionId()) {
       this.patchState(idx, { extractionError: null });
       void this.extract(idx);
     }
@@ -132,8 +132,9 @@ export class ExamComponent implements OnInit {
     if (this.isLast()) {
       this.completing.set(true);
       try {
-        if (this.sessionId) {
-          await this.sessionService.completeSession(this.sessionId);
+        const id = this.sessionId();
+        if (id) {
+          await this.sessionService.completeSession(id);
         }
       } catch {
         // Non-fatal — still show completion screen
@@ -166,10 +167,11 @@ export class ExamComponent implements OnInit {
   }
 
   private async persistQuestion(index: number, transcript: string): Promise<void> {
-    if (!this.sessionId) return;
+    const id = this.sessionId();
+    if (!id) return;
     const question = QUESTIONS[index];
     if (!question) return;
-    await this.sessionService.saveQuestion(this.sessionId, {
+    await this.sessionService.saveQuestion(id, {
       questionNumber: question.number,
       questionText: question.prompt,
       transcript,
@@ -177,13 +179,14 @@ export class ExamComponent implements OnInit {
   }
 
   private async extract(index: number): Promise<void> {
-    if (!this.sessionId) return;
+    const id = this.sessionId();
+    if (!id) return;
     const question = QUESTIONS[index];
     if (!question) return;
 
     this.patchState(index, { extracting: true, extractionError: null });
     try {
-      const result = await this.extractionService.extract(this.sessionId, question.number);
+      const result = await this.extractionService.extract(id, question.number);
       this.patchState(index, {
         extracting: false,
         concepts: result.concepts,

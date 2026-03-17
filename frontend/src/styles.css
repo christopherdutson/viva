@@ -114,6 +114,15 @@ button:disabled {
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+.session-row {
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.session-row:hover {
+  background: #f5f3ff;
+}
+
 .table th {
   font-weight: 700;
   opacity: 0.8;

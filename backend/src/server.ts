@@ -158,6 +158,99 @@ interface SessionRow {
   question_count: number;
 }
 
+// Get full session detail with question assessments and concept extractions
+interface SessionDetailQuestion {
+  id: number;
+  question_number: number;
+  question_text: string;
+  transcript: string;
+  score: number | null;
+  passed: number | null;
+  concepts: Array<{
+    concept_id: number;
+    concept_name: string;
+    detected: number;
+    confidence: number;
+    evidence: string;
+  }>;
+}
+
+interface SessionDetail {
+  id: string;
+  started_at: string;
+  completed_at: string | null;
+  overall_score: number | null;
+  passed: number | null;
+  questions: SessionDetailQuestion[];
+}
+
+fastify.get<{ Params: SessionParams }>('/sessions/:sessionId', async (request, reply) => {
+  const { sessionId } = request.params;
+
+  interface SessionBaseRow {
+    id: string; started_at: string; completed_at: string | null;
+    overall_score: number | null; passed: number | null;
+  }
+  const session = await new Promise<SessionBaseRow | null>((resolve, reject) => {
+    db.get(
+      'SELECT id, started_at, completed_at, overall_score, passed FROM sessions WHERE id = ?',
+      [sessionId],
+      (err: Error | null, row: SessionBaseRow | undefined) => {
+        if (err) return reject(err);
+        resolve(row ?? null);
+      },
+    );
+  });
+
+  if (!session) return reply.status(404).send({ error: 'Session not found' });
+
+  interface QARow {
+    id: number; question_number: number; question_text: string;
+    transcript: string; score: number | null; passed: number | null;
+  }
+  const assessments = await new Promise<QARow[]>((resolve, reject) => {
+    db.all(
+      `SELECT id, question_number, question_text, transcript, score, passed
+       FROM question_assessments WHERE session_id = ? ORDER BY question_number`,
+      [sessionId],
+      (err: Error | null, rows: QARow[]) => {
+        if (err) return reject(err);
+        resolve(rows);
+      },
+    );
+  });
+
+  interface CERow {
+    question_assessment_id: number; concept_id: number; concept_name: string;
+    detected: number; confidence: number; evidence: string;
+  }
+  const assessmentIds = assessments.map((a) => a.id);
+  const extractions = assessmentIds.length > 0
+    ? await new Promise<CERow[]>((resolve, reject) => {
+        db.all(
+          `SELECT question_assessment_id, concept_id, concept_name, detected, confidence, evidence
+           FROM concept_extractions
+           WHERE question_assessment_id IN (${assessmentIds.map(() => '?').join(',')})
+           ORDER BY concept_id`,
+          assessmentIds,
+          (err: Error | null, rows: CERow[]) => {
+            if (err) return reject(err);
+            resolve(rows);
+          },
+        );
+      })
+    : [];
+
+  const questions: SessionDetailQuestion[] = assessments.map((a) => ({
+    ...a,
+    concepts: extractions.filter((e) => e.question_assessment_id === a.id),
+  }));
+
+  const detail: SessionDetail = { ...session, questions };
+  return detail;
+});
+
+// List all sessions with question counts
 fastify.get('/sessions', async (_request, _reply) => {
   return new Promise<SessionRow[]>((resolve, reject) => {
     db.all(
@@ -301,63 +394,18 @@ fastify.post<{ Params: ExtractParams }>(
       .map((c) => `${c.id}. ${c.name}: ${c.description}`)
       .join('\n');
 
+    fastify.log.info({ transcriptLength: assessment.transcript?.length, questionNumber, conceptCount: rubric.concepts.length }, 'Starting LLM extraction');
+
     let extractedConcepts: ConceptExtractionInput[];
     try {
       const message = await anthropic.messages.create({
-        model: 'claude-opus-4-6',
-        max_tokens: 4096,
-        tools: [
-          {
-            name: 'extract_concepts',
-            description:
-              'For each concept in the rubric, determine whether the student demonstrated understanding of it in their answer.',
-            input_schema: {
-              type: 'object' as const,
-              properties: {
-                concepts: {
-                  type: 'array' as const,
-                  description: 'One entry per rubric concept, in order',
-                  items: {
-                    type: 'object' as const,
-                    properties: {
-                      conceptId: {
-                        type: 'number' as const,
-                        description: 'The concept number from the rubric',
-                      },
-                      conceptName: {
-                        type: 'string' as const,
-                        description: 'The concept name from the rubric',
-                      },
-                      detected: {
-                        type: 'boolean' as const,
-                        description:
-                          'True if the student demonstrated understanding of this concept, even if imperfectly or using different terminology',
-                      },
-                      confidence: {
-                        type: 'number' as const,
-                        description: 'Confidence score from 0.0 to 1.0',
-                      },
-                      evidence: {
-                        type: 'string' as const,
-                        description:
-                          'A quote or paraphrase from the transcript supporting the detection verdict. If not detected, explain what was missing.',
-                      },
-                    },
-                    required: ['conceptId', 'conceptName', 'detected', 'confidence', 'evidence'],
-                    additionalProperties: false,
-                  },
-                },
-              },
-              required: ['concepts'],
-              additionalProperties: false,
-            },
-          },
-        ],
-        tool_choice: { type: 'tool', name: 'extract_concepts' },
+        model: 'claude-sonnet-4-6',
+        max_tokens: 8192,
+        system: 'You are an expert examiner evaluating oral exam answers about distributed systems. Always respond with valid JSON only — no markdown, no explanation, just the JSON object.',
         messages: [
           {
             role: 'user',
-            content: `You are an expert examiner evaluating an oral exam answer about distributed systems.
+            content: `Evaluate this student answer against the rubric concepts below.
 
 QUESTION: "${rubric.questionText}"
 
@@ -369,21 +417,25 @@ ${conceptList}
 
 Instructions:
 - Evaluate every concept in the rubric
-- Be generous: if the student touches on the idea — even imperfectly, informally, or using different terminology — mark it as detected
+- Be generous: mark detected=true if the student touches on the idea even imperfectly or with different terminology
 - Provide evidence from the transcript for each concept (a direct quote or paraphrase)
-- Use confidence 0.9+ when clearly stated, 0.6–0.9 when implied or partial, below 0.6 when very uncertain`,
+- Use confidence 0.9+ when clearly stated, 0.6–0.9 when implied or partial, below 0.6 when very uncertain
+
+Respond with this exact JSON structure:
+{"concepts":[{"conceptId":1,"conceptName":"...","detected":true,"confidence":0.9,"evidence":"..."},...]}`,
           },
         ],
       });
 
-      const toolBlock = message.content.find(
-        (b): b is Anthropic.ToolUseBlock => b.type === 'tool_use',
+      const textBlock = message.content.find(
+        (b): b is Anthropic.TextBlock => b.type === 'text',
       );
-      if (!toolBlock) {
-        throw new Error('LLM did not return structured extraction');
+      if (!textBlock) {
+        throw new Error('LLM did not return a text response');
       }
 
-      const raw = toolBlock.input as { concepts: ConceptExtractionInput[] };
+      const jsonText = textBlock.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      const raw = JSON.parse(jsonText) as { concepts: ConceptExtractionInput[] };
       extractedConcepts = raw.concepts;
     } catch (err) {
       fastify.log.error(err, 'LLM extraction failed');

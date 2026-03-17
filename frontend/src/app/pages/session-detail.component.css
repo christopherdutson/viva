@@ -1,0 +1,147 @@
+.session-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+/* ── Session header ── */
+
+.session-header-top {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.session-title {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.session-meta {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.overall-score {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+/* ── Question card ── */
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.question-header-left {
+  flex: 1;
+}
+
+.question-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+}
+
+.question-text {
+  margin: 0.35rem 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #111;
+}
+
+.question-score-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.question-score-label {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+/* ── Transcript ── */
+
+.block-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #6b7280;
+  margin: 0 0 0.5rem;
+}
+
+.transcript-block {
+  padding: 0.75rem 1rem;
+  background: #f8f9ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.transcript-body {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #374151;
+}
+
+/* ── Concepts table ── */
+
+.concepts-block {
+  margin-top: 0.25rem;
+}
+
+.concepts-table {
+  font-size: 0.9rem;
+}
+
+.concept-name {
+  font-weight: 600;
+}
+
+.concept-status {
+  text-align: center;
+}
+
+.status-icon {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.status-icon.detected {
+  color: #16a34a;
+}
+
+.status-icon.missed {
+  color: #dc2626;
+}
+
+.evidence-text {
+  font-size: 0.85rem;
+  color: #4b5563;
+  max-width: 28rem;
+}
+
+.concept-detected {
+  background: #f0fdf4;
+}
+
+.concept-missed {
+  background: #fff;
+}

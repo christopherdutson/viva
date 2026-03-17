@@ -20,7 +20,7 @@
       </thead>
       <tbody>
         @for (session of sessions(); track session.id; let i = $index) {
-          <tr>
+          <tr class="session-row" [routerLink]="['/results', session.id]">
             <td>#{{ sessions().length - i }}</td>
             <td>{{ session.started_at | date: 'dd MMM y, HH:mm' }}</td>
             <td>{{ session.completed_at ? (session.completed_at | date: 'dd MMM y, HH:mm') : '—' }}</td>

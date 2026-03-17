@@ -1,0 +1,100 @@
+<div class="session-detail">
+  @if (loading()) {
+    <div class="card"><p class="muted">Loading session…</p></div>
+  } @else if (error()) {
+    <div class="card"><p class="error-text">{{ error() }}</p></div>
+  } @else if (session()) {
+
+    <!-- Session header -->
+    <div class="card session-header">
+      <div class="session-header-top">
+        <h2 class="session-title">Exam Session</h2>
+        @if (session()!.completed_at) {
+          <span class="badge" [class.passed]="isPassed(session()!.passed)" [class.failed]="!isPassed(session()!.passed)">
+            {{ isPassed(session()!.passed) ? 'Passed' : 'Failed' }}
+          </span>
+        } @else {
+          <span class="badge in-progress">In progress</span>
+        }
+      </div>
+      <div class="session-meta">
+        <span class="muted">Started: {{ session()!.started_at | date: 'dd MMM y, HH:mm' }}</span>
+        @if (session()!.completed_at) {
+          <span class="muted">Finished: {{ session()!.completed_at | date: 'dd MMM y, HH:mm' }}</span>
+          <span class="overall-score">Overall: {{ scorePercent(session()!.overall_score) }}</span>
+        }
+      </div>
+    </div>
+
+    <!-- One card per question -->
+    @for (q of session()!.questions; track q.id) {
+      <div class="card question-card">
+
+        <div class="question-header">
+          <div class="question-header-left">
+            <span class="question-label">Question {{ q.question_number }}</span>
+            <p class="question-text">{{ q.question_text }}</p>
+          </div>
+          @if (q.score !== null) {
+            <div class="question-score-block">
+              <span class="badge" [class.passed]="isPassed(q.passed)" [class.failed]="!isPassed(q.passed)">
+                {{ isPassed(q.passed) ? 'Pass' : 'Fail' }}
+              </span>
+              <span class="question-score-label">{{ scorePercent(q.score) }}</span>
+            </div>
+          }
+        </div>
+
+        <!-- Transcript -->
+        <div class="transcript-block">
+          <p class="block-label">Transcript</p>
+          <p class="transcript-body">{{ q.transcript }}</p>
+        </div>
+
+        <!-- Concept breakdown -->
+        @if (q.concepts.length > 0) {
+          <div class="concepts-block">
+            <p class="block-label">Concept Breakdown</p>
+            <table class="table concepts-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Concept</th>
+                  <th>Detected</th>
+                  <th>Confidence</th>
+                  <th>Evidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of q.concepts; track c.concept_id) {
+                  <tr [class.concept-detected]="c.detected === 1" [class.concept-missed]="c.detected === 0">
+                    <td class="muted">{{ c.concept_id }}</td>
+                    <td class="concept-name">{{ c.concept_name }}</td>
+                    <td class="concept-status">
+                      @if (c.detected === 1) {
+                        <span class="status-icon detected">✓</span>
+                      } @else {
+                        <span class="status-icon missed">✗</span>
+                      }
+                    </td>
+                    <td class="muted">{{ confidencePercent(c.confidence) }}</td>
+                    <td class="evidence-text">{{ c.evidence }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="muted" style="margin-top: 1rem;">No concept analysis available for this question.</p>
+        }
+
+      </div>
+    }
+
+  }
+
+  <div class="button-group">
+    <button class="secondary" [routerLink]="['/results']">Back to Results</button>
+    <button class="primary" [routerLink]="['/exam']">New Exam</button>
+  </div>
+</div>

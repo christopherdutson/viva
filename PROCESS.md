@@ -4,7 +4,7 @@
 - Initial project setup: Create and run basic frontend, placeholder backend, setup docker
 3-17-26: 8:20am: 2 hrs
 - First Claude.md Instructions, Updated UI, added recordings, store transcriptions, display basic results but always passing scores
-3-17-26: 11:50am: 
+3-17-26: 11:50am: 2.25 hrs
 - Clean up backend to account for unusual inputs, Setup LLM extraction with Claude, troubleshooted issues with Anthropic API
 
 
@@ -32,12 +32,14 @@ Claude API  (LLM Provider) - As I used Claude as a coding assistant, it was most
 - ChatGPT: Initial Brainstorming, choosing tools, advice on setup
 - Docker official documentation 
 - Stack Overflow: Issues with npm, git broken pipe bug, etc
+- Anthropic API documentation
 
 
 5. Challenges & Solutions - What problems did you run into? How did you diagnose and solve them? What took longer than expected?
 
 - Docker took longer than expected to install and run. I've never used it before and tried installing it from the WSL command line but it didn't have everything I needed to run the project. I went to the official Docker documentation and downloaded the desktop app. 
 - Using WSL commands created some confusion as Claude installed using the windows command line. After I updated CLAUDE.md to note this things went much more smoothly. 
+- Getting the Anthropic API to analyze the 12 column schema on question 3 was difficult. After trying several simplifications I switched to Sonnet rather than Opus and changed the format to return JSON and it worked. 
 
 6. If You Had More Time
 What would you improve, add, or change with another 16 hours?
