@@ -1,0 +1,53 @@
+<div class="recorder">
+
+  @if (state() === 'idle') {
+    <div class="recorder-idle">
+      <div class="recorder-mic-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="2" width="6" height="11" rx="3"/>
+          <path d="M5 10a7 7 0 0 0 14 0"/>
+          <line x1="12" x2="12" y1="19" y2="22"/>
+          <line x1="8" x2="16" y1="22" y2="22"/>
+        </svg>
+      </div>
+      <p class="recorder-hint">Record your spoken answer, then review before submitting.</p>
+      <button class="primary" (click)="startRecording()">Start Recording</button>
+    </div>
+  }
+
+  @if (state() === 'requesting') {
+    <div class="recorder-requesting">
+      <div class="recorder-spinner"></div>
+      <p class="muted">Requesting microphone access…</p>
+    </div>
+  }
+
+  @if (state() === 'recording') {
+    <div class="recorder-active">
+      <div class="recording-indicator">
+        <span class="rec-dot"></span>
+        <span class="rec-label">Recording</span>
+        <span class="rec-timer">{{ formatTime(recordingSeconds()) }}</span>
+      </div>
+      <button class="danger" (click)="stopRecording()">Stop Recording</button>
+    </div>
+  }
+
+  @if (state() === 'recorded') {
+    <div class="recorder-done">
+      <p class="recorder-hint recorded-label">Review your answer before continuing.</p>
+      <audio [src]="audioUrl()!" controls class="audio-player"></audio>
+      <div class="recorder-actions">
+        <button class="secondary" (click)="deleteRecording()">Re-record</button>
+      </div>
+    </div>
+  }
+
+  @if (state() === 'error') {
+    <div class="recorder-error">
+      <p class="error-text">{{ errorMessage() }}</p>
+      <button class="secondary" (click)="retryFromError()">Try Again</button>
+    </div>
+  }
+
+</div>

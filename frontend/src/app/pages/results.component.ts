@@ -34,39 +34,8 @@ const DUMMY_SESSIONS: SessionSummary[] = [
   standalone: true,
   selector: 'app-results',
   imports: [CommonModule, RouterLink],
-  template: `
-    <div class="card">
-      <h2>Past Exam Results</h2>
-      <p>Review your previous sessions; data is simulated for now.</p>
-
-      <table class="table">
-        <thead>
-          <tr>
-            <th>Session</th>
-            <th>Date</th>
-            <th>Score</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let session of sessions">
-            <td>{{ session.id }}</td>
-            <td>{{ session.startedAt | date: 'medium' }}</td>
-            <td>{{ (session.overallScore * 100) | number: '1.0-0' }}%</td>
-            <td>
-              <span class="badge" [class.passed]="session.passed" [class.failed]="!session.passed">
-                {{ session.passed ? 'Passed' : 'Failed' }}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div class="button-group" style="margin-top: 1.5rem;">
-        <button class="secondary" [routerLink]="['/']">Back to Home</button>
-      </div>
-    </div>
-  `,
+  templateUrl: './results.component.html',
+  styleUrl: './results.component.css',
 })
 export class ResultsComponent {
   sessions = DUMMY_SESSIONS;

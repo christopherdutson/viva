@@ -1,92 +1,72 @@
 import { Component, computed, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { AudioRecorderComponent } from '../components/audio-recorder.component';
 
 const QUESTIONS = [
   {
+    number: 1,
     prompt:
-      "Explain how distributed systems use quorum-based decisions to handle node failures, and describe the role of fencing tokens in preventing split-brain scenarios.",
+      'Explain how distributed systems use quorum-based decisions to handle node failures, and describe the role of fencing tokens in preventing split-brain scenarios.',
   },
   {
+    number: 2,
     prompt:
-      "Compare Byzantine faults with crash faults in distributed systems. Under what conditions might a system need Byzantine fault tolerance, and why do most practical systems only handle crash faults?",
+      'Compare Byzantine faults with crash faults in distributed systems. Under what conditions might a system need Byzantine fault tolerance, and why do most practical systems only handle crash faults?',
   },
   {
+    number: 3,
     prompt:
-      "Describe the main system models for timing assumptions in distributed systems. Then explain the difference between safety and liveness properties, and give an example of each in the context of a distributed database.",
+      'Describe the main system models for timing assumptions in distributed systems. Then explain the difference between safety and liveness properties, and give an example of each in the context of a distributed database.',
   },
 ];
 
 @Component({
   standalone: true,
   selector: 'app-exam',
-  imports: [CommonModule, RouterLink],
-  template: `
-    <div class="card">
-      <h2>Exam</h2>
-      <p>
-        Question {{ currentIndex() + 1 }} of {{ total }}
-      </p>
-
-      <div style="margin-top: 1rem;">
-        <strong>Prompt</strong>
-        <p>{{ currentQuestion().prompt }}</p>
-      </div>
-
-      <div style="margin-top: 1.5rem;">
-        <p class="muted">
-          (Audio recording and transcription will be added in the next iteration.)
-        </p>
-      </div>
-
-      <div class="button-group">
-        <button class="secondary" (click)="prev()" [disabled]="currentIndex() === 0">
-          Previous
-        </button>
-        <button class="primary" (click)="next()">
-          {{ isLast() ? 'Finish' : 'Next' }}
-        </button>
-      </div>
-
-      <div *ngIf="completed()" style="margin-top: 1.5rem;">
-        <p><strong>Done!</strong> You have completed the mock exam flow.</p>
-        <div class="button-group">
-          <button class="secondary" [routerLink]="['/']">Home</button>
-          <button class="primary" [routerLink]="['/results']">View Results</button>
-        </div>
-      </div>
-    </div>
-  `,
+  imports: [RouterLink, AudioRecorderComponent],
+  templateUrl: './exam.component.html',
+  styleUrl: './exam.component.css',
 })
 export class ExamComponent {
-  private currentIndexSignal = signal(0);
-  private examCompleted = signal(false);
-
-  readonly currentQuestion = computed(() => QUESTIONS[this.currentIndexSignal()]);
+  readonly questions = QUESTIONS;
   readonly total = QUESTIONS.length;
 
-  currentIndex() {
+  private readonly currentIndexSignal = signal(0);
+  private readonly examCompleted = signal(false);
+  readonly recordings = signal<(Blob | null)[]>([null, null, null]);
+
+  readonly currentQuestion = computed(() => QUESTIONS[this.currentIndexSignal()]);
+
+  currentIndex(): number {
     return this.currentIndexSignal();
   }
 
-  completed() {
+  completed(): boolean {
     return this.examCompleted();
   }
 
-  isLast() {
+  isLast(): boolean {
     return this.currentIndex() === this.total - 1;
   }
 
-  next() {
+  onRecordingReady(index: number, blob: Blob | null): void {
+    this.recordings.update((recs) => {
+      const updated = [...recs] as (Blob | null)[];
+      updated[index] = blob;
+      return updated;
+    });
+  }
+
+  next(): void {
+    if (this.recordings()[this.currentIndex()] === null) return;
     if (this.isLast()) {
       this.examCompleted.set(true);
       return;
     }
-
-    this.currentIndexSignal.update((current) => Math.min(current + 1, this.total - 1));
+    this.currentIndexSignal.update((i) => i + 1);
   }
 
-  prev() {
-    this.currentIndexSignal.update((current) => Math.max(current - 1, 0));
+  prev(): void {
+    this.currentIndexSignal.update((i) => Math.max(i - 1, 0));
   }
 }

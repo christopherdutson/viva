@@ -1,1 +1,336 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global styles — applied to all components */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: #f6f7fb;
+  color: #111;
+  min-height: 100vh;
+}
+
+/* ── Shared layout ──────────────────────────────────────────── */
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+/* ── Buttons ────────────────────────────────────────────────── */
+
+button {
+  padding: 0.9rem 2.2rem;
+  border-radius: 0.6rem;
+  border: none;
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background 0.15s ease, transform 0.1s ease, box-shadow 0.15s ease;
+}
+
+button.primary {
+  background: linear-gradient(135deg, #4f46e5, #7c3aed);
+  color: white;
+  box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35);
+}
+
+button.primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #4338ca, #6d28d9);
+  box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+  transform: translateY(-1px);
+}
+
+button.primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+}
+
+button.secondary {
+  background: #f1f0ff;
+  color: #4338ca;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+button.secondary:hover:not(:disabled) {
+  background: #e0deff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+button.secondary:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button.danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: white;
+  box-shadow: 0 4px 14px rgba(239, 68, 68, 0.35);
+}
+
+button.danger:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  box-shadow: 0 6px 20px rgba(239, 68, 68, 0.45);
+  transform: translateY(-1px);
+}
+
+button.danger:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Card ───────────────────────────────────────────────────── */
+
+.card {
+  background: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+}
+
+/* ── Table ──────────────────────────────────────────────────── */
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.table th {
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+/* ── Badges ─────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.badge.passed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.badge.failed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ── Utility ────────────────────────────────────────────────── */
+
+.muted {
+  color: #6b7280;
+  font-size: 0.92rem;
+}
+
+/* ── Exam layout ─────────────────────────────────────────────── */
+
+.exam-progress {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+}
+
+.progress-step {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  border: 2px solid #d1d5db;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #9ca3af;
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.progress-step.active {
+  border-color: #4f46e5;
+  color: #4f46e5;
+}
+
+.progress-step.done {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: white;
+}
+
+.exam-counter {
+  text-align: center;
+  margin: 0 0 0.5rem;
+}
+
+.exam-question {
+  font-size: 1.15rem;
+  line-height: 1.6;
+  font-weight: 600;
+  margin: 0 0 1.5rem;
+}
+
+.exam-complete {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  background: #f0fdf4;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.next-hint {
+  text-align: center;
+  margin-top: 0.5rem;
+}
+
+/* ── Audio recorder ──────────────────────────────────────────── */
+
+.recorder {
+  background: #f8f9ff;
+  border: 1px solid #e0e7ff;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.recorder-mic-icon {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 0 auto 0.75rem;
+  color: #4f46e5;
+}
+
+.recorder-mic-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.recorder-hint {
+  color: #6b7280;
+  font-size: 0.92rem;
+  margin: 0 0 1rem;
+}
+
+.recorded-label {
+  margin-bottom: 0.75rem;
+}
+
+/* Requesting state */
+.recorder-requesting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.recorder-spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 3px solid #e0e7ff;
+  border-top-color: #4f46e5;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Recording state */
+.recorder-active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.recording-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+}
+
+.rec-dot {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+.rec-label {
+  color: #ef4444;
+  font-size: 0.95rem;
+}
+
+.rec-timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 1.1rem;
+  color: #374151;
+  min-width: 3rem;
+}
+
+/* Recorded state */
+.recorder-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.audio-player {
+  width: 100%;
+  max-width: 480px;
+  margin-bottom: 1rem;
+  border-radius: 0.5rem;
+}
+
+.recorder-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+/* Error state */
+.recorder-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.error-text {
+  color: #dc2626;
+  font-size: 0.92rem;
+  margin: 0;
+}

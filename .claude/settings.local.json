@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Read(//c/Users/chris/.claude/projects/c--Users-chris-Documents-GitHub-viva/memory/**)"
+    ]
+  }
+}

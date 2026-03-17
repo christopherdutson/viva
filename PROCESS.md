@@ -1,7 +1,9 @@
 1. Timeline
 
-3-14-26: 5:12pm:
+3-14-26: 5:12pm: 2.5 hrs
 - Initial project setup: Create and run basic frontend, placeholder backend, setup docker
+3-17-26: 8:20am: 
+- Claude.md Instructions, 
 
 
 2. Technical Decisions

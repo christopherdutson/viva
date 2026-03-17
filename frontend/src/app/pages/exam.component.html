@@ -1,0 +1,51 @@
+<div class="card">
+  <!-- Progress bar -->
+  <div class="exam-progress">
+    @for (q of questions; track q.number) {
+      <div
+        class="progress-step"
+        [class.active]="q.number - 1 === currentIndex()"
+        [class.done]="recordings()[q.number - 1] !== null"
+      >
+        <span class="step-num">{{ q.number }}</span>
+      </div>
+    }
+  </div>
+
+  <p class="muted exam-counter">Question {{ currentIndex() + 1 }} of {{ total }}</p>
+  <h2 class="exam-question">{{ currentQuestion().prompt }}</h2>
+
+  <!-- One recorder per question; only the active one is visible -->
+  @for (q of questions; track q.number) {
+    <div [style.display]="q.number - 1 === currentIndex() ? 'block' : 'none'">
+      <app-audio-recorder (recordingReady)="onRecordingReady(q.number - 1, $event)" />
+    </div>
+  }
+
+  @if (completed()) {
+    <div class="exam-complete">
+      <p><strong>All questions answered.</strong> Review your recordings or submit.</p>
+      <div class="button-group">
+        <button class="secondary" [routerLink]="['/']">Home</button>
+        <button class="primary" [routerLink]="['/results']">View Results</button>
+      </div>
+    </div>
+  } @else {
+    <div class="button-group">
+      <button class="secondary" (click)="prev()" [disabled]="currentIndex() === 0">
+        Previous
+      </button>
+      <button
+        class="primary"
+        (click)="next()"
+        [disabled]="recordings()[currentIndex()] === null"
+        [title]="recordings()[currentIndex()] === null ? 'Record your answer first' : ''"
+      >
+        {{ isLast() ? 'Finish' : 'Next Question' }}
+      </button>
+    </div>
+    @if (recordings()[currentIndex()] === null) {
+      <p class="muted next-hint">Record your answer to continue.</p>
+    }
+  }
+</div>
