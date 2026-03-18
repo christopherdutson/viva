@@ -6,6 +6,8 @@
 - First Claude.md Instructions, Updated UI, added recordings, store transcriptions, display basic results but always passing scores
 3-17-26: 11:50am: 2.25 hrs
 - Clean up backend to account for unusual inputs, Setup LLM extraction with Claude, troubleshooted issues with Anthropic API
+3-17-26: 8:47pm: 
+- Polish: pause recordings when moving to a new question, stop transcribing if the user presses re-record, allow user to jump to any question by selecting the number at the top. 
 
 
 2. Technical Decisions
@@ -19,6 +21,8 @@ SQLite (database) - Lightweight storage, easy to read and access results
 Docker (backend container) - Required
 Whisper - Lightweight and fast, good enough for the purposes of this app
 Claude API  (LLM Provider) - As I used Claude as a coding assistant, it was most familiar with this API and could it working better and faster
+Vitest (Backend test framework) - compatible with typescript without needing to add more config. Works well with Fastify. Other technologies considered: Mocha/Jest. Decided against because of speed and ease of setup. 
+Playwright (E2E test framework) - TS support, simple mocking and setup compared to Mocha/Karma. 
 
 
 3. Tools & Environment - List every tool, library, editor, extension, and service you used during development. Be comprehensive — we want to understand your full development environment and workflow.

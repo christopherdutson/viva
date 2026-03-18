@@ -4,7 +4,8 @@
       "Bash(npm run:*)",
       "Read(//c/Users/chris/.claude/projects/c--Users-chris-Documents-GitHub-viva/memory/**)",
       "Read(//mnt/c/Users/chris/Documents/GitHub/viva/**)",
-      "Bash(./node_modules/.bin/tsc --noEmit)"
+      "Bash(./node_modules/.bin/tsc --noEmit)",
+      "Bash(npm test:*)"
     ]
   }
 }
