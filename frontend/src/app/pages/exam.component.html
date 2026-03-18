@@ -28,7 +28,7 @@
   }
 
   <!-- Transcription status -->
-  @if (currentState().blob !== null) {
+  @if (hasTranscriptionState()) {
     <div class="transcription-status">
       @if (currentState().transcribing) {
         <div class="transcribing">
@@ -83,6 +83,7 @@
     </div>
   } @else {
     <div class="button-group">
+      <button class="secondary" (click)="exitExam()">Exit Exam</button>
       <button class="secondary" (click)="prev()" [disabled]="currentIndex() === 0">
         Previous
       </button>
@@ -96,7 +97,7 @@
     </div>
     @if (!isReadyToAdvance() && !currentState().transcribing) {
       <p class="muted next-hint">
-        @if (currentState().blob === null) { Record your answer to continue. }
+        @if (currentState().transcript === null && !currentState().transcribing) { Record your answer to continue. }
         @else if (currentState().transcriptionError) { Fix the transcription error to continue. }
       </p>
     }

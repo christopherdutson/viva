@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, computed, inject, signal, viewChildren } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { AudioRecorderComponent } from '../components/audio-recorder.component';
 import { TranscriptionService } from '../services/transcription.service';
 import { SessionService } from '../services/session.service';
@@ -35,6 +35,21 @@ interface QuestionState {
   passed: boolean | null;
 }
 
+// What we persist to sessionStorage (no blob — not serialisable)
+interface PersistedState {
+  sessionId: string;
+  states: Array<{
+    transcript: string | null;
+    transcriptionError: string | null;
+    extractionError: string | null;
+    concepts: ConceptExtraction[] | null;
+    score: number | null;
+    passed: boolean | null;
+  }>;
+}
+
+const STORAGE_KEY = 'viva_exam';
+
 const emptyState = (): QuestionState => ({
   blob: null,
   transcript: null,
@@ -58,6 +73,7 @@ export class ExamComponent implements OnInit, OnDestroy {
   private readonly transcriptionService = inject(TranscriptionService);
   private readonly sessionService = inject(SessionService);
   private readonly extractionService = inject(ExtractionService);
+  private readonly router = inject(Router);
   private readonly recorders = viewChildren(AudioRecorderComponent);
 
   readonly questions = QUESTIONS;
@@ -75,7 +91,7 @@ export class ExamComponent implements OnInit, OnDestroy {
 
   private readonly generations = QUESTIONS.map(() => 0);
   private readonly unloadHandler = (e: BeforeUnloadEvent) => {
-    if (!this.examCompleted() && this.questionStates().some((s) => s.blob !== null)) {
+    if (!this.examCompleted() && this.questionStates().some((s) => s.transcript !== null)) {
       e.preventDefault();
     }
   };
@@ -84,8 +100,13 @@ export class ExamComponent implements OnInit, OnDestroy {
 
   async ngOnInit(): Promise<void> {
     window.addEventListener('beforeunload', this.unloadHandler);
+
+    if (this.restoreFromStorage()) return;
+
     try {
-      this.sessionId.set(await this.sessionService.createSession());
+      const id = await this.sessionService.createSession();
+      this.sessionId.set(id);
+      this.saveToStorage();
     } catch {
       this.sessionWarning.set('Could not connect to the server — your answers will not be saved.');
     }
@@ -113,7 +134,17 @@ export class ExamComponent implements OnInit, OnDestroy {
 
   isReadyToAdvance(): boolean {
     const s = this.currentState();
-    return s.blob !== null && !s.transcribing && s.transcript !== null;
+    // blob check dropped — a restored transcript (blob=null) is sufficient to advance
+    return s.transcript !== null && !s.transcribing;
+  }
+
+  hasTranscriptionState(): boolean {
+    const s = this.currentState();
+    return s.blob !== null || s.transcript !== null || s.transcribing || s.transcriptionError !== null;
+  }
+
+  exitExam(): void {
+    void this.router.navigate(['/']);
   }
 
   goTo(index: number): void {
@@ -161,6 +192,7 @@ export class ExamComponent implements OnInit, OnDestroy {
         this.completing.set(false);
       }
       this.examCompleted.set(true);
+      this.clearStorage();
       return;
     }
     this.pauseCurrentAudio();
@@ -238,5 +270,58 @@ export class ExamComponent implements OnInit, OnDestroy {
     this.questionStates.update((states) =>
       states.map((s, i) => (i === index ? { ...s, ...patch } : s)),
     );
+    this.saveToStorage();
+  }
+
+  // ── sessionStorage persistence ──────────────────────────────────────────────
+
+  private saveToStorage(): void {
+    const id = this.sessionId();
+    if (!id) return;
+    const data: PersistedState = {
+      sessionId: id,
+      states: this.questionStates().map((s) => ({
+        transcript: s.transcript,
+        transcriptionError: s.transcriptionError,
+        extractionError: s.extractionError,
+        concepts: s.concepts,
+        score: s.score,
+        passed: s.passed,
+      })),
+    };
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    } catch {
+      // sessionStorage unavailable — silently skip
+    }
+  }
+
+  private restoreFromStorage(): boolean {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw) as PersistedState;
+      if (!data.sessionId || !Array.isArray(data.states)) return false;
+
+      this.sessionId.set(data.sessionId);
+      this.questionStates.set(
+        QUESTIONS.map((_, i) => {
+          const saved = data.states[i];
+          if (!saved) return emptyState();
+          return { ...emptyState(), ...saved };
+        }),
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private clearStorage(): void {
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
   }
 }

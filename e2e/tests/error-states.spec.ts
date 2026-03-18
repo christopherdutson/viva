@@ -133,7 +133,7 @@ test.describe('Error states', () => {
     await expect(page.getByRole('button', { name: 'Next Question' })).toBeEnabled();
   });
 
-  test('starts a fresh exam after page reload', async ({ page }) => {
+  test('restores transcript after page reload', async ({ page }) => {
     await mockMediaAPIs(page);
     await mockSession(page);
 
@@ -154,28 +154,31 @@ test.describe('Error states', () => {
 
     await page.goto('/exam');
 
-    // Record Q1 and wait for transcript to confirm state is populated
+    // Record Q1 and wait for transcript and score
     await recordAnswer(page);
     await expect(page.getByText('Transcript')).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('100%')).toBeVisible({ timeout: 10000 });
 
-    // Re-mock routes before reload so the new session POST is handled
-    await page.route('**/sessions', async (route) => {
-      if (route.request().method() === 'POST') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ id: 'test-session-2', started_at: '2026-01-01T00:00:00.000Z' }),
-        });
-      } else {
-        await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
-      }
-    });
-
+    // Reload — sessionStorage should restore transcript and score without re-recording
     await page.reload({ waitUntil: 'networkidle' });
 
-    // After reload: back to Q1, no transcript, no score
-    await expect(page.getByText('Transcript')).not.toBeVisible();
-    await expect(page.locator('.progress-step.active').first()).toBeVisible();
     await expect(page.getByText('Question 1 of 3')).toBeVisible();
+    await expect(page.getByText('Transcript')).toBeVisible();
+    await expect(page.getByText('My answer about quorums.')).toBeVisible();
+    await expect(page.getByText('100%')).toBeVisible();
+
+    // Next Question should be enabled — transcript is sufficient to advance
+    await expect(page.getByRole('button', { name: 'Next Question' })).toBeEnabled();
+  });
+
+  test('exit exam button navigates to home page', async ({ page }) => {
+    await mockMediaAPIs(page);
+    await mockSession(page);
+
+    await page.goto('/exam');
+
+    await page.getByRole('button', { name: 'Exit Exam' }).click();
+
+    await expect(page).toHaveURL('/');
   });
 });
