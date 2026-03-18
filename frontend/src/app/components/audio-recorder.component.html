@@ -36,7 +36,7 @@
   @if (state() === 'recorded') {
     <div class="recorder-done">
       <p class="recorder-hint recorded-label">Review your answer before continuing.</p>
-      <audio [src]="audioUrl()!" controls class="audio-player"></audio>
+      <audio #audioPlayer [src]="audioUrl()!" controls class="audio-player"></audio>
       <div class="recorder-actions">
         <button class="secondary" (click)="deleteRecording()">Re-record</button>
       </div>

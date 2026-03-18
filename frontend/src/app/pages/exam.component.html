@@ -6,6 +6,7 @@
         class="progress-step"
         [class.active]="q.number - 1 === currentIndex()"
         [class.done]="questionStates()[q.number - 1]?.transcript !== null"
+        (click)="goTo(q.number - 1)"
       >
         <span class="step-num">{{ q.number }}</span>
       </div>

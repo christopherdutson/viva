@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal, viewChildren } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AudioRecorderComponent } from '../components/audio-recorder.component';
 import { TranscriptionService } from '../services/transcription.service';
@@ -58,6 +58,7 @@ export class ExamComponent implements OnInit {
   private readonly transcriptionService = inject(TranscriptionService);
   private readonly sessionService = inject(SessionService);
   private readonly extractionService = inject(ExtractionService);
+  private readonly recorders = viewChildren(AudioRecorderComponent);
 
   readonly questions = QUESTIONS;
   readonly total = QUESTIONS.length;
@@ -70,6 +71,8 @@ export class ExamComponent implements OnInit {
   readonly questionStates = signal<QuestionState[]>(
     QUESTIONS.map(() => emptyState()),
   );
+
+  private readonly generations = QUESTIONS.map(() => 0);
 
   readonly currentQuestion = computed(() => QUESTIONS[this.currentIndexSignal()]);
 
@@ -99,22 +102,27 @@ export class ExamComponent implements OnInit {
 
   isReadyToAdvance(): boolean {
     const s = this.currentState();
-    // Unblock Next/Finish as soon as transcription is done.
-    // Extraction runs in the background and does not block navigation.
     return s.blob !== null && !s.transcribing && s.transcript !== null;
   }
 
+  goTo(index: number): void {
+    this.pauseCurrentAudio();
+    this.currentIndexSignal.set(index);
+  }
+
   onRecordingReady(index: number, blob: Blob | null): void {
+    this.generations[index]++;
     this.patchState(index, { ...emptyState(), blob });
     if (blob) {
-      void this.transcribe(index, blob);
+      void this.transcribe(index, blob, this.generations[index]);
     }
   }
 
   retryTranscription(): void {
+    const idx = this.currentIndex();
     const s = this.currentState();
     if (s.blob) {
-      void this.transcribe(this.currentIndex(), s.blob);
+      void this.transcribe(idx, s.blob, this.generations[idx]);
     }
   }
 
@@ -123,7 +131,7 @@ export class ExamComponent implements OnInit {
     const s = this.currentState();
     if (s.transcript && this.sessionId()) {
       this.patchState(idx, { extractionError: null });
-      void this.extract(idx);
+      void this.extract(idx, this.generations[idx]);
     }
   }
 
@@ -144,21 +152,29 @@ export class ExamComponent implements OnInit {
       this.examCompleted.set(true);
       return;
     }
+    this.pauseCurrentAudio();
     this.currentIndexSignal.update((i) => i + 1);
   }
 
   prev(): void {
+    this.pauseCurrentAudio();
     this.currentIndexSignal.update((i) => Math.max(i - 1, 0));
   }
 
-  private async transcribe(index: number, blob: Blob): Promise<void> {
+  private pauseCurrentAudio(): void {
+    this.recorders()[this.currentIndexSignal()]?.pauseAudio();
+  }
+
+  private async transcribe(index: number, blob: Blob, gen: number): Promise<void> {
     this.patchState(index, { transcribing: true, transcriptionError: null });
     try {
       const transcript = await this.transcriptionService.transcribe(blob);
+      if (this.generations[index] !== gen) return;
       this.patchState(index, { transcript, transcribing: false });
       await this.persistQuestion(index, transcript);
-      void this.extract(index);
+      void this.extract(index, gen);
     } catch (err) {
+      if (this.generations[index] !== gen) return;
       this.patchState(index, {
         transcribing: false,
         transcriptionError: err instanceof Error ? err.message : 'Transcription failed',
@@ -178,7 +194,7 @@ export class ExamComponent implements OnInit {
     });
   }
 
-  private async extract(index: number): Promise<void> {
+  private async extract(index: number, gen: number): Promise<void> {
     const id = this.sessionId();
     if (!id) return;
     const question = QUESTIONS[index];
@@ -187,6 +203,7 @@ export class ExamComponent implements OnInit {
     this.patchState(index, { extracting: true, extractionError: null });
     try {
       const result = await this.extractionService.extract(id, question.number);
+      if (this.generations[index] !== gen) return;
       this.patchState(index, {
         extracting: false,
         concepts: result.concepts,
@@ -194,6 +211,7 @@ export class ExamComponent implements OnInit {
         passed: result.passed,
       });
     } catch (err) {
+      if (this.generations[index] !== gen) return;
       this.patchState(index, {
         extracting: false,
         extractionError: err instanceof Error ? err.message : 'Extraction failed',

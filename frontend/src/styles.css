@@ -181,7 +181,13 @@ button:disabled {
   font-weight: 700;
   font-size: 0.9rem;
   color: #9ca3af;
+  cursor: pointer;
   transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+
+.progress-step:hover {
+  border-color: #a5b4fc;
+  color: #4f46e5;
 }
 
 .progress-step.active {

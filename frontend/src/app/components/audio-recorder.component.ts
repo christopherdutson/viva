@@ -1,4 +1,4 @@
-import { Component, signal, output, OnDestroy } from '@angular/core';
+import { Component, signal, output, OnDestroy, ElementRef, viewChild } from '@angular/core';
 
 type RecorderState = 'idle' | 'requesting' | 'recording' | 'recorded' | 'error';
 
@@ -16,10 +16,16 @@ export class AudioRecorderComponent implements OnDestroy {
   readonly audioUrl = signal<string | null>(null);
   readonly recordingSeconds = signal(0);
 
+  private readonly audioEl = viewChild<ElementRef<HTMLAudioElement>>('audioPlayer');
+
   private mediaRecorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private stream: MediaStream | null = null;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
+
+  pauseAudio(): void {
+    this.audioEl()?.nativeElement.pause();
+  }
 
   async startRecording(): Promise<void> {
     this.state.set('requesting');
