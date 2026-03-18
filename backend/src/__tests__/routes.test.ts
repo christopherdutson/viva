@@ -53,7 +53,7 @@ describe('POST /sessions', () => {
     const body = res.json<{ id: string; started_at: string }>();
     expect(typeof body.id).toBe('string');
     expect(body.id.length).toBeGreaterThan(0);
-    expect(typeof body.started_at).toBe('string');
+    expect(body.started_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/); // ISO 8601
   });
 });
 

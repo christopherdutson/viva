@@ -7,7 +7,7 @@
 3-17-26: 11:50am: 2.25 hrs
 - Clean up backend to account for unusual inputs, Setup LLM extraction with Claude, troubleshooted issues with Anthropic API
 3-17-26: 8:47pm: 
-- Polish: pause recordings when moving to a new question, stop transcribing if the user presses re-record, allow user to jump to any question by selecting the number at the top. 
+- Polish: pause recordings when moving to a new question, stop transcribing if the user presses re-record, allow user to jump to any question by selecting the number at the top. Add integration and E2E tests. Mutation testing to ensure quality coverage. 
 
 
 2. Technical Decisions

@@ -1,4 +1,4 @@
-import { Component, OnInit, computed, inject, signal, viewChildren } from '@angular/core';
+import { Component, OnInit, OnDestroy, computed, inject, signal, viewChildren } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { AudioRecorderComponent } from '../components/audio-recorder.component';
 import { TranscriptionService } from '../services/transcription.service';
@@ -54,7 +54,7 @@ const emptyState = (): QuestionState => ({
   templateUrl: './exam.component.html',
   styleUrl: './exam.component.css',
 })
-export class ExamComponent implements OnInit {
+export class ExamComponent implements OnInit, OnDestroy {
   private readonly transcriptionService = inject(TranscriptionService);
   private readonly sessionService = inject(SessionService);
   private readonly extractionService = inject(ExtractionService);
@@ -67,21 +67,32 @@ export class ExamComponent implements OnInit {
   private readonly examCompleted = signal(false);
   readonly completing = signal(false);
   readonly sessionId = signal<string | null>(null);
+  readonly sessionWarning = signal<string | null>(null);
 
   readonly questionStates = signal<QuestionState[]>(
     QUESTIONS.map(() => emptyState()),
   );
 
   private readonly generations = QUESTIONS.map(() => 0);
+  private readonly unloadHandler = (e: BeforeUnloadEvent) => {
+    if (!this.examCompleted() && this.questionStates().some((s) => s.blob !== null)) {
+      e.preventDefault();
+    }
+  };
 
   readonly currentQuestion = computed(() => QUESTIONS[this.currentIndexSignal()]);
 
   async ngOnInit(): Promise<void> {
+    window.addEventListener('beforeunload', this.unloadHandler);
     try {
       this.sessionId.set(await this.sessionService.createSession());
     } catch {
-      // Persist failure is non-fatal — exam continues without saving
+      this.sessionWarning.set('Could not connect to the server — your answers will not be saved.');
     }
+  }
+
+  ngOnDestroy(): void {
+    window.removeEventListener('beforeunload', this.unloadHandler);
   }
 
   currentIndex(): number {
@@ -171,7 +182,11 @@ export class ExamComponent implements OnInit {
       const transcript = await this.transcriptionService.transcribe(blob);
       if (this.generations[index] !== gen) return;
       this.patchState(index, { transcript, transcribing: false });
-      await this.persistQuestion(index, transcript);
+      try {
+        await this.persistQuestion(index, transcript);
+      } catch {
+        // Non-fatal — extraction will surface its own 404 error if save failed
+      }
       void this.extract(index, gen);
     } catch (err) {
       if (this.generations[index] !== gen) return;

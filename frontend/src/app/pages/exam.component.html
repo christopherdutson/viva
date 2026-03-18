@@ -1,4 +1,8 @@
 <div class="card">
+  @if (sessionWarning()) {
+    <div class="session-warning">{{ sessionWarning() }}</div>
+  }
+
   <!-- Progress steps -->
   <div class="exam-progress">
     @for (q of questions; track q.number) {
