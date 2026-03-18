@@ -268,28 +268,26 @@ test.describe('Happy path — full exam flow', () => {
   test('completes all three questions and shows results', async ({ page }) => {
     await page.goto('/exam');
 
-    // Question 1
+    // Question 1 — only wait for transcript (no per-question score any more)
     await recordAnswer(page);
     await expect(page.getByText('Transcript')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('.badge')).toBeVisible({ timeout: 15000 });
     await page.getByRole('button', { name: 'Next Question' }).click();
 
     // Question 2
     await recordAnswer(page);
     await expect(page.getByText('Transcript')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('.badge')).toBeVisible({ timeout: 15000 });
     await page.getByRole('button', { name: 'Next Question' }).click();
 
-    // Question 3
+    // Question 3 — clicking Finish triggers grading
     await recordAnswer(page);
     await expect(page.getByText('Transcript')).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('.badge')).toBeVisible({ timeout: 15000 });
     await page.getByRole('button', { name: 'Finish' }).click();
 
-    // Completion screen
+    // Grading screen appears then resolves to completion
+    await expect(page.getByText('Grading your exam…')).toBeVisible({ timeout: 5000 });
     await expect(
       page.getByText('All questions answered and submitted.'),
-    ).toBeVisible({ timeout: 10000 });
+    ).toBeVisible({ timeout: 15000 });
 
     // Navigate to results
     await page.getByRole('button', { name: 'View Results' }).click();

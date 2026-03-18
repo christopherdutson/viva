@@ -299,7 +299,13 @@ export function buildApp(
       concepts: extractions.filter((e) => e.question_assessment_id === a.id),
     }));
 
-    const detail: SessionDetail = { ...session, questions };
+    // Compute overall_score from live concept_extractions data so it is
+    // always accurate even when grading ran after /complete was called.
+    const totalConcepts = extractions.length;
+    const totalDetected = extractions.filter((e) => e.detected === 1).length;
+    const overallScore = totalConcepts > 0 ? totalDetected / totalConcepts : session.overall_score;
+
+    const detail: SessionDetail = { ...session, overall_score: overallScore, questions };
     return detail;
   });
 

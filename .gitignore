@@ -10,7 +10,12 @@ build/
 
 # SQLite database (runtime data)
 *.db
+*.db-shm
+*.db-wal
 data/
+
+# Playwright
+.last-run.json
 
 # OS / editor
 .DS_Store

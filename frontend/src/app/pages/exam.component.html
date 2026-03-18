@@ -3,77 +3,39 @@
     <div class="session-warning">{{ sessionWarning() }}</div>
   }
 
-  <!-- Progress steps -->
-  <div class="exam-progress">
-    @for (q of questions; track q.number) {
-      <div
-        class="progress-step"
-        [class.active]="q.number - 1 === currentIndex()"
-        [class.done]="questionStates()[q.number - 1]?.transcript !== null"
-        (click)="goTo(q.number - 1)"
-      >
-        <span class="step-num">{{ q.number }}</span>
+  @if (grading()) {
+    <!-- Grading screen -->
+    <div class="grading-screen">
+      @if (isGradingPending()) {
+        <div class="grading-spinner-large"></div>
+      }
+      <h2 class="grading-title">
+        @if (isGradingPending()) { Grading your exam… }
+        @else if (hasGradingErrors()) { Grading incomplete }
+      </h2>
+      <div class="grading-questions">
+        @for (q of questions; track q.number) {
+          <div class="grading-question-row">
+            <span class="grading-question-label">Question {{ q.number }}</span>
+            @if (questionStates()[q.number - 1]?.extracting || questionStates()[q.number - 1]?.score === null && !questionStates()[q.number - 1]?.extractionError) {
+              <div class="grading-item-spinner"></div>
+            } @else if (questionStates()[q.number - 1]?.score !== null) {
+              <span class="grading-item-done">Graded</span>
+            } @else if (questionStates()[q.number - 1]?.extractionError) {
+              <span class="grading-item-error">Failed</span>
+            }
+          </div>
+        }
       </div>
-    }
-  </div>
-
-  <p class="muted exam-counter">Question {{ currentIndex() + 1 }} of {{ total }}</p>
-  <h2 class="exam-question">{{ currentQuestion().prompt }}</h2>
-
-  <!-- One recorder per question; only the active one is visible -->
-  @for (q of questions; track q.number) {
-    <div [style.display]="q.number - 1 === currentIndex() ? 'block' : 'none'">
-      <app-audio-recorder (recordingReady)="onRecordingReady(q.number - 1, $event)" />
-    </div>
-  }
-
-  <!-- Transcription status -->
-  @if (hasTranscriptionState()) {
-    <div class="transcription-status">
-      @if (currentState().transcribing) {
-        <div class="transcribing">
-          <div class="transcription-spinner"></div>
-          <span>Transcribing your answer…</span>
-        </div>
-      } @else if (currentState().transcriptionError) {
-        <div class="transcription-error">
-          <p class="error-text">{{ currentState().transcriptionError }}</p>
-          <button class="secondary" (click)="retryTranscription()">Retry</button>
-        </div>
-      } @else if (currentState().transcript) {
-        <div class="transcript-preview">
-          <p class="transcript-label">Transcript</p>
-          <p class="transcript-text">{{ currentState().transcript }}</p>
+      @if (hasGradingErrors() && !isGradingPending()) {
+        <p class="muted">Some questions could not be graded. Please retry.</p>
+        <div class="button-group">
+          <button class="primary" (click)="retryGrading()">Retry Grading</button>
         </div>
       }
     </div>
-  }
 
-  <!-- Analysis status (independent of transcription display) -->
-  @if (currentState().transcript !== null) {
-    <div class="analysis-status">
-      @if (currentState().extracting) {
-        <div class="transcribing">
-          <div class="transcription-spinner"></div>
-          <span>Analysing your answer…</span>
-        </div>
-      } @else if (currentState().extractionError) {
-        <div class="transcription-error">
-          <p class="error-text">{{ currentState().extractionError }}</p>
-          <button class="secondary" (click)="retryExtraction()">Retry analysis</button>
-        </div>
-      } @else if (currentState().score !== null) {
-        <div class="extraction-summary" [class.extraction-passed]="currentState().passed" [class.extraction-failed]="!currentState().passed">
-          <span class="extraction-score">Score: {{ (currentState().score! * 100).toFixed(0) }}%</span>
-          <span class="badge" [class.passed]="currentState().passed" [class.failed]="!currentState().passed">
-            {{ currentState().passed ? 'Pass' : 'Fail' }}
-          </span>
-        </div>
-      }
-    </div>
-  }
-
-  @if (completed()) {
+  } @else if (completed()) {
     <div class="exam-complete">
       <p><strong>All questions answered and submitted.</strong> You may view scores or take again.</p>
       <div class="button-group">
@@ -81,7 +43,54 @@
         <button class="primary" [routerLink]="['/results', sessionId()]">View Results</button>
       </div>
     </div>
+
   } @else {
+    <!-- Progress steps -->
+    <div class="exam-progress">
+      @for (q of questions; track q.number) {
+        <div
+          class="progress-step"
+          [class.active]="q.number - 1 === currentIndex()"
+          [class.done]="questionStates()[q.number - 1]?.transcript !== null"
+          (click)="goTo(q.number - 1)"
+        >
+          <span class="step-num">{{ q.number }}</span>
+        </div>
+      }
+    </div>
+
+    <p class="muted exam-counter">Question {{ currentIndex() + 1 }} of {{ total }}</p>
+    <h2 class="exam-question">{{ currentQuestion().prompt }}</h2>
+
+    <!-- One recorder per question; only the active one is visible -->
+    @for (q of questions; track q.number) {
+      <div [style.display]="q.number - 1 === currentIndex() ? 'block' : 'none'">
+        <app-audio-recorder (recordingReady)="onRecordingReady(q.number - 1, $event)" />
+      </div>
+    }
+
+    <!-- Transcription status -->
+    @if (hasTranscriptionState()) {
+      <div class="transcription-status">
+        @if (currentState().transcribing) {
+          <div class="transcribing">
+            <div class="transcription-spinner"></div>
+            <span>Transcribing your answer…</span>
+          </div>
+        } @else if (currentState().transcriptionError) {
+          <div class="transcription-error">
+            <p class="error-text">{{ currentState().transcriptionError }}</p>
+            <button class="secondary" (click)="retryTranscription()">Retry</button>
+          </div>
+        } @else if (currentState().transcript) {
+          <div class="transcript-preview">
+            <p class="transcript-label">Transcript</p>
+            <p class="transcript-text">{{ currentState().transcript }}</p>
+          </div>
+        }
+      </div>
+    }
+
     <div class="button-group">
       <button class="secondary" (click)="exitExam()">Exit Exam</button>
       <button class="secondary" (click)="prev()" [disabled]="currentIndex() === 0">

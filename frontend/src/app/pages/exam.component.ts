@@ -38,6 +38,7 @@ interface QuestionState {
 // What we persist to sessionStorage (no blob — not serialisable)
 interface PersistedState {
   sessionId: string;
+  grading: boolean;
   states: Array<{
     transcript: string | null;
     transcriptionError: string | null;
@@ -82,6 +83,7 @@ export class ExamComponent implements OnInit, OnDestroy {
   private readonly currentIndexSignal = signal(0);
   private readonly examCompleted = signal(false);
   readonly completing = signal(false);
+  readonly grading = signal(false);
   readonly sessionId = signal<string | null>(null);
   readonly sessionWarning = signal<string | null>(null);
 
@@ -101,7 +103,12 @@ export class ExamComponent implements OnInit, OnDestroy {
   async ngOnInit(): Promise<void> {
     window.addEventListener('beforeunload', this.unloadHandler);
 
-    if (this.restoreFromStorage()) return;
+    if (this.restoreFromStorage()) {
+      if (this.grading()) {
+        void this.gradeAll();
+      }
+      return;
+    }
 
     try {
       const id = await this.sessionService.createSession();
@@ -134,7 +141,6 @@ export class ExamComponent implements OnInit, OnDestroy {
 
   isReadyToAdvance(): boolean {
     const s = this.currentState();
-    // blob check dropped — a restored transcript (blob=null) is sufficient to advance
     return s.transcript !== null && !s.transcribing;
   }
 
@@ -143,7 +149,16 @@ export class ExamComponent implements OnInit, OnDestroy {
     return s.blob !== null || s.transcript !== null || s.transcribing || s.transcriptionError !== null;
   }
 
+  isGradingPending(): boolean {
+    return this.questionStates().some((s) => s.extracting);
+  }
+
+  hasGradingErrors(): boolean {
+    return this.questionStates().some((s) => s.extractionError !== null);
+  }
+
   exitExam(): void {
+    this.clearStorage();
     void this.router.navigate(['/']);
   }
 
@@ -168,13 +183,13 @@ export class ExamComponent implements OnInit, OnDestroy {
     }
   }
 
-  retryExtraction(): void {
-    const idx = this.currentIndex();
-    const s = this.currentState();
-    if (s.transcript && this.sessionId()) {
-      this.patchState(idx, { extractionError: null });
-      void this.extract(idx, this.generations[idx]);
-    }
+  retryGrading(): void {
+    this.questionStates().forEach((s, i) => {
+      if (s.extractionError) {
+        this.patchState(i, { extractionError: null });
+      }
+    });
+    void this.gradeAll();
   }
 
   async next(): Promise<void> {
@@ -187,12 +202,19 @@ export class ExamComponent implements OnInit, OnDestroy {
           await this.sessionService.completeSession(id);
         }
       } catch {
-        // Non-fatal — still show completion screen
+        // Non-fatal — still proceed to grading
       } finally {
         this.completing.set(false);
       }
-      this.examCompleted.set(true);
-      this.clearStorage();
+      // Skip grading if there is no session (e.g. server was unreachable)
+      if (!this.sessionId()) {
+        this.examCompleted.set(true);
+        this.clearStorage();
+        return;
+      }
+      this.grading.set(true);
+      this.saveToStorage();
+      void this.gradeAll();
       return;
     }
     this.pauseCurrentAudio();
@@ -208,6 +230,22 @@ export class ExamComponent implements OnInit, OnDestroy {
     this.recorders()[this.currentIndexSignal()]?.pauseAudio();
   }
 
+  private async gradeAll(): Promise<void> {
+    await Promise.all(
+      QUESTIONS.map((_, i) =>
+        this.questionStates()[i]?.score !== null
+          ? Promise.resolve()
+          : this.extract(i, this.generations[i]),
+      ),
+    );
+    if (this.questionStates().every((s) => s.score !== null)) {
+      this.grading.set(false);
+      this.examCompleted.set(true);
+      this.clearStorage();
+    }
+    // If errors remain, stay on grading screen — user can retry
+  }
+
   private async transcribe(index: number, blob: Blob, gen: number): Promise<void> {
     this.patchState(index, { transcribing: true, transcriptionError: null });
     try {
@@ -219,7 +257,6 @@ export class ExamComponent implements OnInit, OnDestroy {
       } catch {
         // Non-fatal — extraction will surface its own 404 error if save failed
       }
-      void this.extract(index, gen);
     } catch (err) {
       if (this.generations[index] !== gen) return;
       this.patchState(index, {
@@ -280,6 +317,7 @@ export class ExamComponent implements OnInit, OnDestroy {
     if (!id) return;
     const data: PersistedState = {
       sessionId: id,
+      grading: this.grading(),
       states: this.questionStates().map((s) => ({
         transcript: s.transcript,
         transcriptionError: s.transcriptionError,
@@ -311,6 +349,9 @@ export class ExamComponent implements OnInit, OnDestroy {
           return { ...emptyState(), ...saved };
         }),
       );
+      if (data.grading) {
+        this.grading.set(true);
+      }
       return true;
     } catch {
       return false;
