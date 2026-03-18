@@ -44,7 +44,7 @@ ng serve           # starts on http://localhost:4200
 | Backend | Node.js + Fastify |
 | Database | SQLite |
 | Speech-to-text | Whisper via `@xenova/transformers` (runs locally) |
-| LLM | Claude API (`claude-opus-4-6`) |
+| LLM | Claude API (`claude-sonnet-4-6`) |
 | Container | Docker Compose |
 
 ## Running with Docker
