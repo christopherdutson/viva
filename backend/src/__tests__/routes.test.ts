@@ -80,13 +80,20 @@ describe('GET /sessions', () => {
     expect(res.json()).toEqual([]);
   });
 
-  it('returns sessions after one is created', async () => {
+  it('returns completed sessions and excludes incomplete ones', async () => {
+    const created = await app.inject({ method: 'POST', url: '/sessions' });
+    const { id } = created.json<{ id: string }>();
+
+    // Incomplete session — should not appear in results
     await app.inject({ method: 'POST', url: '/sessions' });
+
+    await app.inject({ method: 'PATCH', url: `/sessions/${id}/complete` });
+
     const res = await app.inject({ method: 'GET', url: '/sessions' });
     expect(res.statusCode).toBe(200);
     const body = res.json<Array<{ id: string; question_count: number }>>();
     expect(body).toHaveLength(1);
-    expect(typeof body[0]!.id).toBe('string');
+    expect(body[0]!.id).toBe(id);
     expect(body[0]!.question_count).toBe(0);
   });
 });

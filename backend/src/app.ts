@@ -226,6 +226,7 @@ export function buildApp(
                 COUNT(q.id) AS question_count
          FROM sessions s
          LEFT JOIN question_assessments q ON q.session_id = s.id
+         WHERE s.completed_at IS NOT NULL
          GROUP BY s.id
          ORDER BY s.started_at DESC`,
         (err: Error | null, rows: SessionRow[]) => {

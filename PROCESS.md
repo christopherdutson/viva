@@ -42,7 +42,7 @@
   - Added ExtractionService to Angular frontend; wired extraction status into exam UI as
     an independent section so transcription display is never blocked by analysis
 
-3-17-26  8:47pm  (2.75 hrs)
+3-17-26  8:47pm  (3 hrs)
   - Paused audio playback when navigating between questions (viewChildren + pauseAudio())
   - Added generation counter per question to cancel in-flight transcription/extraction
     when the user presses Re-record — prevents stale results from overwriting reset state
@@ -73,6 +73,8 @@
     removing saveToStorage() and nulling transcript on restore both caught by the
     persistence test
   - Updated exam to only show scores at the end rather than grading immediately after each question 
+  - Fixed bug where exiting exam and starting again would have old data left over
+  - Fixed bug where exited exams showed up in results table as "In Progress"
 
 
 2. Technical Decisions
