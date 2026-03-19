@@ -2,11 +2,20 @@
   <h2>Past Exam Results</h2>
 
   @if (loading()) {
-    <p class="muted">Loading sessions…</p>
+    <div class="results-loading">
+      <div class="results-loading-spinner"></div>
+      <p class="muted">Loading sessions…</p>
+    </div>
   } @else if (error()) {
     <p class="error-text">{{ error() }}</p>
   } @else if (sessions().length === 0) {
-    <p class="muted">No sessions yet. <a [routerLink]="['/exam']">Start your first exam.</a></p>
+    <div class="empty-state">
+      <p class="empty-state-title">No exams completed yet</p>
+      <p class="muted">Your results will appear here once you finish an exam.</p>
+      <div class="button-group">
+        <button class="primary" [routerLink]="['/exam']">Start Your First Exam</button>
+      </div>
+    </div>
   } @else {
     <table class="table">
       <thead>

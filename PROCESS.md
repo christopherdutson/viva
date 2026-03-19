@@ -79,6 +79,7 @@
 3-18-26 8:12pm
   - Wrote basic unit tests for each angular component
   - Cleared database to prepare for recordings
+  - Update UI for results page with no entries
 
 
 2. Technical Decisions
