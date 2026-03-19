@@ -76,6 +76,9 @@
   - Fixed bug where exiting exam and starting again would have old data left over
   - Fixed bug where exited exams showed up in results table as "In Progress"
 
+3-18-26 8:12pm
+  - Wrote basic unit tests for each angular component
+
 
 2. Technical Decisions
 
@@ -185,5 +188,6 @@ the ISO 8601 format.
 - Add spec files for each component
 - Ensure docker works
 - Make recordings
-- Make compatible with mobile
+- Make more compatible with mobile
 - Do more extensive manual testing to find edge cases
+- Periodically delete old or incomplete exams to ensure privacy and cleaner storage
