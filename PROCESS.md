@@ -76,10 +76,27 @@
   - Fixed bug where exiting exam and starting again would have old data left over
   - Fixed bug where exited exams showed up in results table as "In Progress"
 
-3-18-26 8:12pm
-  - Wrote basic unit tests for each angular component
-  - Cleared database to prepare for recordings
-  - Update UI for results page with no entries
+3-18-26 8:12pm (1.5 hrs)
+  - Added Angular unit tests (.component.spec.ts) for all 5 components using TestBed +
+    Vitest; stubbed fetch and router to avoid real network/navigation calls
+  - Fixed overall_score always showing "—" on the results list: the stored column was set
+    at /complete time (before grading ran), so it was always null; replaced with a live
+    SQL subquery computing detected/total from concept_extractions at query time
+  - Improved results page zero state: replaced a plain inline text link with a centred
+    card (title, subtitle, primary "Start Your First Exam" button)
+  - Improved results page loading state: added a centred spinner with min-height so the
+    layout doesn't collapse to a short strip before data arrives
+  - Manually tested Exam flow to find bugs and verify behavior works as expected
+  - Cleared database to remove sessions recorded under the old schema before recordings
+  - Fixed passed always showing as failed: /complete runs before grading so the stored
+    passed column was always 0; fixed by computing passed live in both endpoints
+  - Fixed pass logic to match spec: previously derived passed from overall_score >= 0.75
+    (average across all questions); spec requires all three questions to each score >= 0.75
+    individually — a student who aces two questions but fails one must not pass overall
+  - Added backend integration test covering the specific regression: Q1 all concepts
+    detected (passes), Q2 no concepts detected (fails) — verifies both GET /sessions and
+    GET /sessions/:id return passed=0 even when Q1 alone would have satisfied the old
+    average-based threshold
 
 
 2. Technical Decisions
@@ -187,7 +204,6 @@ the ISO 8601 format.
 
 
 6. If You Had More Time
-- Add spec files for each component
 - Ensure docker works
 - Make recordings
 - Make more compatible with mobile

@@ -222,18 +222,25 @@ export function buildApp(
   fastify.get('/sessions', async (_request, _reply) => {
     return new Promise<SessionRow[]>((resolve, reject) => {
       db.all(
-        `SELECT s.id, s.started_at, s.completed_at, s.passed,
-                COUNT(q.id) AS question_count,
-                (SELECT CAST(SUM(CASE WHEN ce.detected = 1 THEN 1 ELSE 0 END) AS REAL)
-                          / NULLIF(COUNT(ce.id), 0)
-                   FROM concept_extractions ce
-                   JOIN question_assessments qa ON ce.question_assessment_id = qa.id
-                  WHERE qa.session_id = s.id) AS overall_score
-         FROM sessions s
-         LEFT JOIN question_assessments q ON q.session_id = s.id
-         WHERE s.completed_at IS NOT NULL
-         GROUP BY s.id
-         ORDER BY s.started_at DESC`,
+        `WITH session_scores AS (
+           SELECT s.id, s.started_at, s.completed_at,
+                  COUNT(q.id) AS question_count,
+                  (SELECT CAST(SUM(CASE WHEN ce.detected = 1 THEN 1 ELSE 0 END) AS REAL)
+                            / NULLIF(COUNT(ce.id), 0)
+                     FROM concept_extractions ce
+                     JOIN question_assessments qa ON ce.question_assessment_id = qa.id
+                    WHERE qa.session_id = s.id) AS overall_score,
+                  (SELECT CASE WHEN MIN(COALESCE(qa2.passed, 0)) = 1 THEN 1 ELSE 0 END
+                     FROM question_assessments qa2
+                    WHERE qa2.session_id = s.id) AS passed
+           FROM sessions s
+           LEFT JOIN question_assessments q ON q.session_id = s.id
+           WHERE s.completed_at IS NOT NULL
+           GROUP BY s.id
+         )
+         SELECT *
+         FROM session_scores
+         ORDER BY started_at DESC`,
         (err: Error | null, rows: SessionRow[]) => {
           if (err) return reject(err);
           resolve(rows);
@@ -305,13 +312,14 @@ export function buildApp(
       concepts: extractions.filter((e) => e.question_assessment_id === a.id),
     }));
 
-    // Compute overall_score from live concept_extractions data so it is
+    // Compute overall_score and passed from live concept_extractions data so they are
     // always accurate even when grading ran after /complete was called.
     const totalConcepts = extractions.length;
     const totalDetected = extractions.filter((e) => e.detected === 1).length;
     const overallScore = totalConcepts > 0 ? totalDetected / totalConcepts : session.overall_score;
+    const passed = assessments.length > 0 && assessments.every((a) => a.passed === 1) ? 1 : 0;
 
-    const detail: SessionDetail = { ...session, overall_score: overallScore, questions };
+    const detail: SessionDetail = { ...session, overall_score: overallScore, passed, questions };
     return detail;
   });
 
