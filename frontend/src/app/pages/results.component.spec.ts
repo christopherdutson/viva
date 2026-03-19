@@ -31,39 +31,20 @@ describe('ResultsComponent', () => {
   });
 
   describe('scoreLabel()', () => {
-    it('returns "—" for incomplete sessions', () => {
-      const fixture = TestBed.createComponent(ResultsComponent);
-      const label = fixture.componentInstance.scoreLabel({
-        ...baseSession,
-        completed_at: null,
-      });
-      expect(label).toBe('—');
-    });
-
     it('returns formatted percentage when overall_score is present', () => {
       const fixture = TestBed.createComponent(ResultsComponent);
-      const label = fixture.componentInstance.scoreLabel({
-        ...baseSession,
-        overall_score: 0.75,
-      });
-      expect(label).toBe('75%');
+      expect(
+        fixture.componentInstance.scoreLabel({ ...baseSession, overall_score: 0.75 }),
+      ).toBe('75%');
     });
 
-    it('returns "100%" for completed sessions with no score yet', () => {
+    it('returns "—" when overall_score is null', () => {
       const fixture = TestBed.createComponent(ResultsComponent);
-      const label = fixture.componentInstance.scoreLabel(baseSession);
-      expect(label).toBe('100%');
+      expect(fixture.componentInstance.scoreLabel(baseSession)).toBe('—');
     });
   });
 
   describe('isPassed()', () => {
-    it('returns false for incomplete sessions', () => {
-      const fixture = TestBed.createComponent(ResultsComponent);
-      expect(
-        fixture.componentInstance.isPassed({ ...baseSession, completed_at: null }),
-      ).toBe(false);
-    });
-
     it('returns true when passed === 1', () => {
       const fixture = TestBed.createComponent(ResultsComponent);
       expect(
@@ -78,9 +59,9 @@ describe('ResultsComponent', () => {
       ).toBe(false);
     });
 
-    it('assumes passing when completed but passed is null', () => {
+    it('returns false when passed is null', () => {
       const fixture = TestBed.createComponent(ResultsComponent);
-      expect(fixture.componentInstance.isPassed(baseSession)).toBe(true);
+      expect(fixture.componentInstance.isPassed(baseSession)).toBe(false);
     });
   });
 

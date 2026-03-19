@@ -222,8 +222,13 @@ export function buildApp(
   fastify.get('/sessions', async (_request, _reply) => {
     return new Promise<SessionRow[]>((resolve, reject) => {
       db.all(
-        `SELECT s.id, s.started_at, s.completed_at, s.overall_score, s.passed,
-                COUNT(q.id) AS question_count
+        `SELECT s.id, s.started_at, s.completed_at, s.passed,
+                COUNT(q.id) AS question_count,
+                (SELECT CAST(SUM(CASE WHEN ce.detected = 1 THEN 1 ELSE 0 END) AS REAL)
+                          / NULLIF(COUNT(ce.id), 0)
+                   FROM concept_extractions ce
+                   JOIN question_assessments qa ON ce.question_assessment_id = qa.id
+                  WHERE qa.session_id = s.id) AS overall_score
          FROM sessions s
          LEFT JOIN question_assessments q ON q.session_id = s.id
          WHERE s.completed_at IS NOT NULL

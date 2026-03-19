@@ -37,18 +37,14 @@ export class ResultsComponent implements OnInit {
     }
   }
 
-  // Score display: real value once LLM runs, otherwise assume 100% for completed sessions
   scoreLabel(session: SessionSummary): string {
-    if (session.completed_at === null) return '—';
     if (session.overall_score !== null) {
       return `${Math.round(session.overall_score * 100)}%`;
     }
-    return '100%';
+    return '—';
   }
 
   isPassed(session: SessionSummary): boolean {
-    if (session.completed_at === null) return false;
-    if (session.passed !== null) return session.passed === 1;
-    return true; // assume passing until LLM scores are available
+    return session.passed === 1;
   }
 }
