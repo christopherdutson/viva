@@ -98,12 +98,15 @@
     GET /sessions/:id return passed=0 even when Q1 alone would have satisfied the old
     average-based threshold
 
-3-21-26 7:53am
-  - Manual testing 
+3-21-26 7:53am (1.5 hrs)
+  - Manual testing the results flow, looking for bugs and UX improvements
   - Stop recordings if the user moves to another question
   - Ensure that all transcritions are complete before grading
   - Immediately show students their results after grading test
   - Update confidence to reflect the confidence that the concept was demonstrated
+  - Update favicon
+  - Get docker working for backend
+  - Get docker working for frontend
 
 
 2. Technical Decisions
@@ -211,7 +214,6 @@ the ISO 8601 format.
 
 
 6. If You Had More Time
-- Ensure docker works
 - Make recordings
 - Make more compatible with mobile
 - Do more extensive manual testing to find edge cases

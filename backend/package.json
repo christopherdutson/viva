@@ -6,6 +6,7 @@
   "scripts": {
     "test": "vitest run",
     "dev": "tsx --env-file=.env src/server.ts",
+    "start": "tsx src/server.ts",
     "build": "tsc --noEmit"
   },
   "keywords": [],
