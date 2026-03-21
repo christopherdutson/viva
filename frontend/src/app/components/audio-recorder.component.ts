@@ -27,6 +27,12 @@ export class AudioRecorderComponent implements OnDestroy {
     this.audioEl()?.nativeElement.pause();
   }
 
+  stopIfRecording(): void {
+    if (this.state() === 'recording') {
+      this.stopRecording();
+    }
+  }
+
   async startRecording(): Promise<void> {
     this.state.set('requesting');
     try {

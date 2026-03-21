@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, computed, inject, signal, viewChildren } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { AudioRecorderComponent } from '../components/audio-recorder.component';
 import { TranscriptionService } from '../services/transcription.service';
 import { SessionService } from '../services/session.service';
@@ -66,7 +66,7 @@ const emptyState = (): QuestionState => ({
 @Component({
   standalone: true,
   selector: 'app-exam',
-  imports: [RouterLink, AudioRecorderComponent],
+  imports: [AudioRecorderComponent],
   templateUrl: './exam.component.html',
   styleUrl: './exam.component.css',
 })
@@ -81,7 +81,6 @@ export class ExamComponent implements OnInit, OnDestroy {
   readonly total = QUESTIONS.length;
 
   private readonly currentIndexSignal = signal(0);
-  private readonly examCompleted = signal(false);
   readonly completing = signal(false);
   readonly grading = signal(false);
   readonly sessionId = signal<string | null>(null);
@@ -93,7 +92,7 @@ export class ExamComponent implements OnInit, OnDestroy {
 
   private readonly generations = QUESTIONS.map(() => 0);
   private readonly unloadHandler = (e: BeforeUnloadEvent) => {
-    if (!this.examCompleted() && this.questionStates().some((s) => s.transcript !== null)) {
+    if (this.questionStates().some((s) => s.transcript !== null)) {
       e.preventDefault();
     }
   };
@@ -131,23 +130,25 @@ export class ExamComponent implements OnInit, OnDestroy {
     return this.questionStates()[this.currentIndexSignal()] ?? emptyState();
   }
 
-  completed(): boolean {
-    return this.examCompleted();
-  }
-
   isLast(): boolean {
     return this.currentIndex() === this.total - 1;
   }
 
+  // Next button: always enabled (matches the step circle navigation behaviour)
   isReadyToAdvance(): boolean {
-    const s = this.currentState();
-    return s.transcript !== null && !s.transcribing;
+    return true;
+  }
+
+  // Finish button: enabled only when every question has a transcript and none are still transcribing
+  isReadyToFinish(): boolean {
+    return this.questionStates().every((s) => s.transcript !== null && !s.transcribing);
   }
 
   hasTranscriptionState(): boolean {
     const s = this.currentState();
     return s.blob !== null || s.transcript !== null || s.transcribing || s.transcriptionError !== null;
   }
+
 
   isGradingPending(): boolean {
     return this.questionStates().some((s) => s.extracting);
@@ -193,7 +194,8 @@ export class ExamComponent implements OnInit, OnDestroy {
   }
 
   async next(): Promise<void> {
-    if (!this.isReadyToAdvance() || this.completing()) return;
+    const canAdvance = this.isLast() ? this.isReadyToFinish() : this.isReadyToAdvance();
+    if (!canAdvance || this.completing()) return;
     if (this.isLast()) {
       this.completing.set(true);
       try {
@@ -208,8 +210,8 @@ export class ExamComponent implements OnInit, OnDestroy {
       }
       // Skip grading if there is no session (e.g. server was unreachable)
       if (!this.sessionId()) {
-        this.examCompleted.set(true);
         this.clearStorage();
+        void this.router.navigate(['/']);
         return;
       }
       this.grading.set(true);
@@ -227,10 +229,17 @@ export class ExamComponent implements OnInit, OnDestroy {
   }
 
   private pauseCurrentAudio(): void {
-    this.recorders()[this.currentIndexSignal()]?.pauseAudio();
+    const recorder = this.recorders()[this.currentIndexSignal()];
+    recorder?.stopIfRecording();
+    recorder?.pauseAudio();
   }
 
   private async gradeAll(): Promise<void> {
+    // Wait for any in-flight transcriptions to finish before extracting.
+    // This covers the case where Q1/Q2 were auto-stopped on navigation but
+    // their transcription hadn't completed by the time the user finished Q3.
+    await this.waitForTranscriptions();
+
     await Promise.all(
       QUESTIONS.map((_, i) =>
         this.questionStates()[i]?.score !== null
@@ -240,10 +249,23 @@ export class ExamComponent implements OnInit, OnDestroy {
     );
     if (this.questionStates().every((s) => s.score !== null)) {
       this.grading.set(false);
-      this.examCompleted.set(true);
       this.clearStorage();
+      void this.router.navigate(['/results', this.sessionId()]);
     }
     // If errors remain, stay on grading screen — user can retry
+  }
+
+  private waitForTranscriptions(): Promise<void> {
+    return new Promise((resolve) => {
+      const check = () => {
+        if (this.questionStates().some((s) => s.transcribing)) {
+          setTimeout(check, 200);
+        } else {
+          resolve();
+        }
+      };
+      check();
+    });
   }
 
   private async transcribe(index: number, blob: Blob, gen: number): Promise<void> {

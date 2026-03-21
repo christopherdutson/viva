@@ -98,6 +98,12 @@
     GET /sessions/:id return passed=0 even when Q1 alone would have satisfied the old
     average-based threshold
 
+3-21-26 7:53am
+  - Manual testing 
+  - Stop recordings if the user moves to another question
+  - Ensure that all transcritions are complete before grading
+  - Immediately show students their results after grading test
+
 
 2. Technical Decisions
 
