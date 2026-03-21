@@ -372,6 +372,80 @@ describe('overall_score and passed reflect deferred grading (grading runs after 
   });
 });
 
+// ── Re-record: second POST /questions replaces first ─────────────────────────
+
+describe('Re-recording a question replaces the previous transcript and scores', () => {
+  let db: sqlite3.Database;
+  let app: FastifyInstance;
+  let sessionId: string;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    app = buildApp(db, undefined, { logger: false });
+    await app.ready();
+    const createRes = await app.inject({ method: 'POST', url: '/sessions' });
+    sessionId = createRes.json<{ id: string }>().id;
+  });
+
+  afterEach(async () => {
+    await app.close();
+    db.close();
+  });
+
+  it('stores only the latest transcript and scores when a question is submitted twice', async () => {
+    const rubric = getRubric(1)!;
+
+    // ── First recording: all concepts detected ─────────────────────────────
+    await app.inject({
+      method: 'POST',
+      url: `/sessions/${sessionId}/questions`,
+      payload: { questionNumber: 1, questionText: rubric.questionText, transcript: 'original answer' },
+    });
+
+    const allDetectedConcepts = rubric.concepts.map((c) => ({
+      conceptId: c.id, conceptName: c.name, detected: true, confidence: 0.9, evidence: 'e',
+    }));
+    await app.close();
+    app = buildApp(db, mockAnthropicWithConcepts(allDetectedConcepts), { logger: false });
+    await app.ready();
+    await app.inject({ method: 'POST', url: `/sessions/${sessionId}/questions/1/extract` });
+
+    // ── Re-record: no concepts detected ───────────────────────────────────
+    await app.close();
+    app = buildApp(db, undefined, { logger: false });
+    await app.ready();
+
+    await app.inject({
+      method: 'POST',
+      url: `/sessions/${sessionId}/questions`,
+      payload: { questionNumber: 1, questionText: rubric.questionText, transcript: 'updated answer' },
+    });
+
+    const noneDetectedConcepts = rubric.concepts.map((c) => ({
+      conceptId: c.id, conceptName: c.name, detected: false, confidence: 0.1, evidence: 'e',
+    }));
+    await app.close();
+    app = buildApp(db, mockAnthropicWithConcepts(noneDetectedConcepts), { logger: false });
+    await app.ready();
+    await app.inject({ method: 'POST', url: `/sessions/${sessionId}/questions/1/extract` });
+
+    // ── Verify: only one Q1 row, using the updated transcript and scores ───
+    const res = await app.inject({ method: 'GET', url: `/sessions/${sessionId}` });
+    expect(res.statusCode).toBe(200);
+
+    interface SessionDetail {
+      questions: Array<{ questionNumber: number; transcript: string; score: number; passed: boolean }>;
+    }
+    const body = res.json<SessionDetail>();
+    const q1Entries = body.questions.filter((q) => q.questionNumber === 1);
+
+    expect(q1Entries).toHaveLength(1);
+    expect(q1Entries[0]!.transcript).toBe('updated answer');
+    expect(q1Entries[0]!.score).toBe(0);
+    expect(q1Entries[0]!.passed).toBe(false);
+  });
+});
+
 // ── POST /sessions/:sessionId/questions/:questionNumber/extract ───────────────
 
 describe('POST /sessions/:sessionId/questions/:questionNumber/extract', () => {

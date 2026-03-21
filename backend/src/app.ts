@@ -204,16 +204,35 @@ export function buildApp(
       }
 
       return new Promise<{ id: number }>((resolve, reject) => {
-        db.run(
-          `INSERT INTO question_assessments
-             (session_id, question_number, question_text, transcript)
-           VALUES (?, ?, ?, ?)`,
-          [sessionId, questionNumber, questionText, transcript],
-          function (err: Error | null) {
-            if (err) return reject(err);
-            resolve({ id: this.lastID });
-          },
-        );
+        db.serialize(() => {
+          // Remove any prior attempt for this question so re-records replace
+          // the old transcript and scores rather than creating duplicate rows.
+          db.run(
+            `DELETE FROM concept_extractions
+             WHERE question_assessment_id IN (
+               SELECT id FROM question_assessments
+               WHERE session_id = ? AND question_number = ?
+             )`,
+            [sessionId, questionNumber],
+            (err: Error | null) => { if (err) reject(err); },
+          );
+          db.run(
+            `DELETE FROM question_assessments
+             WHERE session_id = ? AND question_number = ?`,
+            [sessionId, questionNumber],
+            (err: Error | null) => { if (err) reject(err); },
+          );
+          db.run(
+            `INSERT INTO question_assessments
+               (session_id, question_number, question_text, transcript)
+             VALUES (?, ?, ?, ?)`,
+            [sessionId, questionNumber, questionText, transcript],
+            function (err: Error | null) {
+              if (err) return reject(err);
+              resolve({ id: this.lastID });
+            },
+          );
+        });
       });
     },
   );
