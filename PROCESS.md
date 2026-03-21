@@ -103,6 +103,7 @@
   - Stop recordings if the user moves to another question
   - Ensure that all transcritions are complete before grading
   - Immediately show students their results after grading test
+  - Update confidence to reflect the confidence that the concept was demonstrated
 
 
 2. Technical Decisions

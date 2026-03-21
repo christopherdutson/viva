@@ -447,7 +447,11 @@ Instructions:
 - Evaluate every concept in the rubric
 - Be generous: mark detected=true if the student touches on the idea even imperfectly or with different terminology
 - Provide evidence from the transcript for each concept (a direct quote or paraphrase)
-- Use confidence 0.9+ when clearly stated, 0.6–0.9 when implied or partial, below 0.6 when very uncertain
+- confidence reflects how well the student addressed the concept (not certainty of detection):
+    - 0.9–1.0: clearly and correctly explained
+    - 0.6–0.89: partially addressed or imperfectly explained
+    - 0.3–0.59: vaguely implied or ambiguous
+    - 0.0–0.29: not addressed, clearly wrong, or directly contradicted
 
 Respond with this exact JSON structure:
 {"concepts":[{"conceptId":1,"conceptName":"...","detected":true,"confidence":0.9,"evidence":"..."},...]}`,
