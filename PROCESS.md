@@ -114,9 +114,10 @@
   - Verified the re-recording fix with a test
   - Refining LLM prompt to not count vague answers
 
-3-21-26 5:44pm (1 hr)
+3-21-26 5:44pm (1.25 hr)
   - Finish and upload Recordings
   - Tweak detection level
+  - Add DB migrations
 
 2. Technical Decisions
 
@@ -220,7 +221,8 @@ the ISO 8601 format.
 
 6. If You Had More Time
 - Do more extensive manual testing to find edge cases
+- Fine tune LLM API call
 - Allow user account creation
 - Paginate results page to account for many submissions
 - Periodically delete old or incomplete exams to ensure privacy and cleaner storage
-- Make more compatible with mobile
+- Make UI more compatible with mobile

@@ -36,6 +36,38 @@ npm install
 ng serve           # starts on http://localhost:4200
 ```
 
+## Running tests
+
+**Backend integration tests** (from WSL — native bindings require Linux):
+
+```bash
+cd backend
+npm test
+```
+
+**Frontend unit tests:**
+
+```bash
+cd frontend
+npm test
+```
+
+**E2E tests** (Playwright — Chromium must be installed once before first run):
+
+```bash
+cd e2e
+npm install
+npx playwright install chromium
+```
+
+Then, with the backend running (`npm run dev` in a WSL terminal), run:
+
+```bash
+npx playwright test
+```
+
+The Playwright config starts the frontend dev server automatically.
+
 ## Tech stack
 
 | Layer | Technology |
@@ -47,6 +79,10 @@ ng serve           # starts on http://localhost:4200
 | LLM | Claude API (`claude-sonnet-4-6`) |
 | Container | Docker Compose |
 
+## Database
+
+The backend runs migrations automatically on startup — no manual setup needed. The SQLite database is stored at `backend/data/app.db` and persists across restarts (both locally and in Docker via a volume mount).
+
 ## Running with Docker
 
 ```bash
@@ -57,3 +93,11 @@ docker compose up
 ```
 
 The app will be available at `http://localhost:4200`.
+
+> **First run:** Docker will download the Whisper model (~150 MB) on startup. This only happens once — the model is cached in a named volume (`whisper_cache`) and reused on subsequent starts.
+
+If you have pulled new code and need to rebuild the images:
+
+```bash
+docker compose up --build
+```
