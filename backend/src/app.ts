@@ -140,6 +140,8 @@ interface ConceptExtractionInput {
   evidence: string;
 }
 
+const DETECTION_THRESHOLD = 0.6;
+
 interface AssessmentRow {
   id: number;
   transcript: string;
@@ -464,16 +466,15 @@ ${conceptList}
 
 Instructions:
 - Evaluate every concept in the rubric
-- Be generous: mark detected=true if the student touches on the idea even imperfectly or with different terminology
 - Provide evidence from the transcript for each concept (a direct quote or paraphrase)
-- confidence reflects how well the student addressed the concept (not certainty of detection):
-    - 0.9–1.0: clearly and correctly explained
-    - 0.6–0.89: partially addressed or imperfectly explained
-    - 0.3–0.59: vaguely implied or ambiguous
-    - 0.0–0.29: not addressed, clearly wrong, or directly contradicted
+- confidence reflects how thoroughly the student explained the concept — not whether they mentioned it:
+    - 0.9–1.0: explicitly and correctly explained with clear reasoning
+    - 0.7–0.89: explicitly addressed with some imprecision or missing detail, but shows clear understanding
+    - 0.4–0.69: mentioned or implied in passing without real explanation — student says a consequence but not why, or uses a term without defining it
+    - 0.0–0.39: not addressed, clearly wrong, or directly contradicted
 
 Respond with this exact JSON structure:
-{"concepts":[{"conceptId":1,"conceptName":"...","detected":true,"confidence":0.9,"evidence":"..."},...]}`,
+{"concepts":[{"conceptId":1,"conceptName":"...","confidence":0.9,"evidence":"..."},...]}`,
             },
           ],
         });
@@ -489,8 +490,11 @@ Respond with this exact JSON structure:
           .replace(/^```(?:json)?\s*/i, '')
           .replace(/\s*```\s*$/i, '')
           .trim();
-        const raw = JSON.parse(jsonText) as { concepts: ConceptExtractionInput[] };
-        extractedConcepts = raw.concepts;
+        const raw = JSON.parse(jsonText) as { concepts: Omit<ConceptExtractionInput, 'detected'>[] };
+        extractedConcepts = raw.concepts.map((c) => ({
+          ...c,
+          detected: c.confidence >= DETECTION_THRESHOLD,
+        }));
       } catch (err) {
         fastify.log.error(err, 'LLM extraction failed');
         return reply.status(500).send({ error: 'Concept extraction failed' });

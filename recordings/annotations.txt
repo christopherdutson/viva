@@ -1,0 +1,111 @@
+Question 1: Quorum Decisions & Fencing Tokens
+Expected: 6/8 concepts detected (75% — borderline pass)
+
+  - Concept 1 (Quorum definition): INCLUDED
+  - Concept 2 (Overlap guarantee): INCLUDED
+  - Concept 3 (Leader election): INCLUDED
+  - Concept 4 (Split-brain problem): INCLUDED
+  - Concept 5 (Fencing token definition): INCLUDED
+  - Concept 6 (Token validation): INCLUDED
+  - Concept 7 (Lock vs. lease): EXCLUDED
+  - Concept 8 (Failure tolerance): EXCLUDED
+
+Script:
+  "In distributed systems, a quorum is when a majority of nodes — more than half — must
+  agree before a decision is made. The key property of quorums is the overlap guarantee:
+  any two quorums must share at least one node in common, which is what ensures
+  consistency across the system. Quorums are commonly used for leader election, where
+  nodes vote to decide which one should act as the primary. Without this, you can run
+  into the split-brain problem, where two nodes both believe they are the leader at the
+  same time, which can lead to conflicting writes and data corruption.
+
+  To prevent problems that arise from split-brain, distributed systems use fencing tokens.
+  A fencing token is a monotonically increasing number that gets issued every time a lock
+  or lease is granted. The important part is that resources must validate the token before
+  accepting any operation — if a request comes in with an older token than what was last
+  seen, the resource rejects it. This ensures that even if an old leader wakes up and tries
+  to write, the storage system will refuse its requests because it's carrying a stale token."
+
+
+Question 2: Byzantine Faults vs. Crash Faults
+Expected: 7/8 concepts detected, with vague answer on concept 5
+
+  - Concept 1 (Crash fault definition): INCLUDED
+  - Concept 2 (Byzantine fault definition): INCLUDED
+  - Concept 3 (Byzantine use cases): INCLUDED
+  - Concept 4 (Crash fault assumption): INCLUDED
+  - Concept 5 (Cost of BFT): VAGUE
+  - Concept 6 (Trust boundary): INCLUDED
+  - Concept 7 (Practical simplification): INCLUDED
+  - Concept 8 (Real-world tradeoff): INCLUDED
+
+Script:
+  "There are two main categories of faults in distributed systems. A crash fault is the
+  simpler one — a node either works correctly or it stops responding entirely. It fails
+  by stopping. A Byzantine fault is much more severe: a node can behave arbitrarily,
+  sending conflicting or incorrect messages, or even acting maliciously. It might lie
+  to some nodes but not others.
+
+  Byzantine fault tolerance is required in environments like blockchain networks,
+  aerospace systems, and multi-party computation where participants may have competing
+  interests. Most datacenters assume crash faults.
+
+  Byzantine fault tolerance is expensive [Too vague]. Trust is important in choosing a protocol
+
+  Assuming nodes are
+  honest dramatically simplifies the problem. When you only need to tolerate stops, your
+  algorithms can be leaner and more efficient — you're not spending resources verifying
+  messages or guarding against internal liars. That simplification is why crash-fault
+  tolerant systems are much more common in practice.
+
+  The real-world decision comes down to threat model and operational environment. In a
+  datacenter the extra cost of BFT isn't
+  justified. In an open system like a blockchain you
+  can't make that trust assumption, so BFT becomes necessary despite the overhead."
+
+
+Question 3: System Models, Safety & Liveness
+Expected: 9/12 concepts detected (75% — borderline pass; concepts 10–12 given opposite definitions)
+
+  - Concept 1 (Synchronous model): INCLUDED
+  - Concept 2 (Asynchronous model): INCLUDED
+  - Concept 3 (Partially synchronous model): INCLUDED
+  - Concept 4 (Practical relevance): INCLUDED
+  - Concept 5 (Safety property definition): INCLUDED
+  - Concept 6 (Liveness property definition): INCLUDED
+  - Concept 7 (Safety example): INCLUDED
+  - Concept 8 (Liveness example): INCLUDED
+  - Concept 9 (Safety–liveness tension): INCLUDED
+  - Concept 10 (Crash-recovery model): OPPOSITE — says nodes lose all state including disk
+  - Concept 11 (Fail-stop vs. fail-recovery): OPPOSITE — swaps definitions
+  - Concept 12 (Model as abstraction): OPPOSITE — says models are for implementation, not proofs
+
+Script:
+  "Distributed systems are designed around different assumptions about timing. In the
+  synchronous model, all messages are guaranteed to arrive within a known bounded time,
+  and processes respond within a known deadline. At the other extreme, the asynchronous
+  model makes no timing assumptions at all — messages can be delayed arbitrarily and
+  there are no reliable clocks. In between is the partially synchronous model, where
+  the system behaves synchronously most of the time but can occasionally exceed those
+  bounds. That's actually the most realistic model for real-world systems like cloud
+  infrastructure, where networks are usually fast but can have unpredictable delays.
+
+  Safety and liveness are two fundamental properties we care about in distributed
+  algorithms. A safety property says that something bad never happens — if it's ever
+  violated, you can point to a specific moment in time when the violation occurred.
+  Examples include uniqueness — no two nodes hold the same lock at the same time — or
+  consistency, meaning you never get conflicting reads. A liveness property says that
+  something good eventually happens — the system keeps making progress. Examples are
+  availability, meaning every request eventually gets a response, or termination, meaning
+  an algorithm eventually reaches a decision.
+
+  The tension between safety and liveness is a central challenge in distributed systems.
+  Under a network partition, it's often impossible to guarantee both at the same time,
+  which is essentially what the CAP theorem is about.
+
+  When it comes to failure models, in the crash-recovery model a node that crashes loses
+  all of its state permanently — both in-memory and on disk — so it can never rejoin the
+  cluster. A fail-stop node, on the other hand, is one that crashes but can restart and
+  rejoin after recovery. A fail-recovery node is one that stops permanently and never
+  comes back. System models are primarily useful for guiding implementation decisions
+  and choosing the right data structures, rather than for formally proving correctness."

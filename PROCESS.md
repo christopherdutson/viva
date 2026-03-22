@@ -108,10 +108,17 @@
   - Get docker working for backend
   - Get docker working for frontend
 
+3-21-26 3:30pm (1.5 hrs)
+  - Prepare recording and annotations
+  - Fixed bug where re-recording wasn't updating the database and had stale data
+  - Verified the re-recording fix with a test
+  - Refining LLM prompt to not count vague answers
+
+3-21-26 5:44pm (1 hr)
+  - Finish and upload Recordings
+  - Tweak detection level
 
 2. Technical Decisions
-
-Technologies I felt strongly about:
 
 Angular (frontend) — Framework I am most familiar with and could iterate on most quickly. Simple to use and easy to set up.
 
@@ -127,8 +134,6 @@ meant the prompt engineering iteration was fast, since I had direct insight into
 model interprets instructions. I also considered using ChatGPT but could have resulted in slower prompt engineering.
 
 Docker Compose — Required by the project spec. 
-
-Technologies I felt less strongly about:
 
 Fastify (backend framework) - From my research it's minimal, has good TypeScript support, and makes
 writing integration tests more straightforward than vanilla js. Also considered Express.js which I think would have done just as well. Mainly looking for something lightweight.
@@ -214,7 +219,8 @@ the ISO 8601 format.
 
 
 6. If You Had More Time
-- Make recordings
-- Make more compatible with mobile
 - Do more extensive manual testing to find edge cases
+- Allow user account creation
+- Paginate results page to account for many submissions
 - Periodically delete old or incomplete exams to ensure privacy and cleaner storage
+- Make more compatible with mobile
