@@ -32,53 +32,92 @@ async function getWhisperPipeline(logger: FastifyInstance['log']): Promise<Whisp
   return whisperPipeline;
 }
 
-// ── DB initialisation ────────────────────────────────────────────────────────
+// ── DB migrations ────────────────────────────────────────────────────────────
+//
+// Each entry is applied exactly once, in order. Never edit an existing
+// migration — add a new one instead.
 
-export function initDb(db: sqlite3.Database): Promise<void> {
+const MIGRATIONS: Array<{ name: string; sql: string }> = [
+  {
+    name: '001_create_sessions',
+    sql: `CREATE TABLE IF NOT EXISTS sessions (
+      id            TEXT PRIMARY KEY,
+      started_at    TEXT NOT NULL,
+      completed_at  TEXT,
+      overall_score REAL,
+      passed        INTEGER
+    )`,
+  },
+  {
+    name: '002_create_question_assessments',
+    sql: `CREATE TABLE IF NOT EXISTS question_assessments (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id      TEXT NOT NULL REFERENCES sessions(id),
+      question_number INTEGER NOT NULL,
+      question_text   TEXT NOT NULL,
+      transcript      TEXT NOT NULL,
+      score           REAL,
+      passed          INTEGER
+    )`,
+  },
+  {
+    name: '003_create_concept_extractions',
+    sql: `CREATE TABLE IF NOT EXISTS concept_extractions (
+      id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+      question_assessment_id INTEGER NOT NULL REFERENCES question_assessments(id),
+      concept_id             INTEGER NOT NULL,
+      concept_name           TEXT NOT NULL,
+      detected               INTEGER NOT NULL,
+      confidence             REAL NOT NULL,
+      evidence               TEXT NOT NULL
+    )`,
+  },
+];
+
+function runMigration(db: sqlite3.Database, sql: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
+    db.run(sql, (err: Error | null) => (err ? reject(err) : resolve()));
+  });
+}
+
+export async function initDb(db: sqlite3.Database): Promise<void> {
+  // Enable foreign keys and create the migrations tracking table.
+  await new Promise<void>((resolve, reject) => {
     db.serialize(() => {
       db.run('PRAGMA foreign_keys = ON', (err: Error | null) => {
         if (err) reject(err);
       });
       db.run(
-        `CREATE TABLE IF NOT EXISTS sessions (
-          id           TEXT PRIMARY KEY,
-          started_at   TEXT NOT NULL,
-          completed_at TEXT,
-          overall_score REAL,
-          passed       INTEGER
+        `CREATE TABLE IF NOT EXISTS _migrations (
+          name       TEXT PRIMARY KEY,
+          applied_at TEXT NOT NULL
         )`,
-        (err: Error | null) => { if (err) reject(err); },
-      );
-      db.run(
-        `CREATE TABLE IF NOT EXISTS question_assessments (
-          id              INTEGER PRIMARY KEY AUTOINCREMENT,
-          session_id      TEXT NOT NULL REFERENCES sessions(id),
-          question_number INTEGER NOT NULL,
-          question_text   TEXT NOT NULL,
-          transcript      TEXT NOT NULL,
-          score           REAL,
-          passed          INTEGER
-        )`,
-        (err: Error | null) => { if (err) reject(err); },
-      );
-      db.run(
-        `CREATE TABLE IF NOT EXISTS concept_extractions (
-          id                     INTEGER PRIMARY KEY AUTOINCREMENT,
-          question_assessment_id INTEGER NOT NULL REFERENCES question_assessments(id),
-          concept_id             INTEGER NOT NULL,
-          concept_name           TEXT NOT NULL,
-          detected               INTEGER NOT NULL,
-          confidence             REAL NOT NULL,
-          evidence               TEXT NOT NULL
-        )`,
-        (err: Error | null) => {
-          if (err) reject(err);
-          else resolve();
-        },
+        (err: Error | null) => (err ? reject(err) : resolve()),
       );
     });
   });
+
+  // Fetch already-applied migration names.
+  const applied = await new Promise<Set<string>>((resolve, reject) => {
+    db.all(
+      'SELECT name FROM _migrations',
+      (err: Error | null, rows: Array<{ name: string }>) => {
+        if (err) return reject(err);
+        resolve(new Set(rows.map((r) => r.name)));
+      },
+    );
+  });
+
+  // Apply any pending migrations in order.
+  for (const migration of MIGRATIONS) {
+    if (applied.has(migration.name)) continue;
+
+    await runMigration(db, migration.sql);
+    await runMigration(
+      db,
+      `INSERT INTO _migrations (name, applied_at) VALUES ('${migration.name}', '${new Date().toISOString()}')`,
+    );
+  }
 }
 
 // ── App factory ──────────────────────────────────────────────────────────────
